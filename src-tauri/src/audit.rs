@@ -36,6 +36,8 @@ pub fn append_at(path: &Path, value: &Value, limit: u64) -> std::io::Result<()> 
     file.write_all(b"\n")?;
     Ok(())
 }
+static AUDIT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub fn record(
     action: &str,
     target: Option<&str>,
@@ -45,6 +47,9 @@ pub fn record(
     if cfg!(test) {
         return;
     }
+    let Ok(_guard) = AUDIT_LOCK.lock() else {
+        return;
+    };
     let Some(home) = std::env::var_os("HOME") else {
         return;
     };
