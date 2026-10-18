@@ -1,4 +1,5 @@
 pub mod audit;
+mod awake;
 mod commands;
 mod desktop;
 pub mod error;
@@ -41,6 +42,14 @@ pub fn run() {
             desktop::startup_warning
         ])
         .setup(desktop::setup)
-        .run(tauri::generate_context!())
-        .expect("无法启动 SMB 共享助手");
+        .build(tauri::generate_context!())
+        .expect("无法启动 SMB 共享助手")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                use tauri::Manager;
+                if let Some(state) = app.try_state::<awake::AwakeState>() {
+                    state.0.lock().unwrap().stop();
+                }
+            }
+        });
 }

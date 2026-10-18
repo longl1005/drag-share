@@ -10,6 +10,7 @@ pub struct Service {
     pub platform: Box<dyn SmbPlatform>,
     pub mutation: tokio::sync::Mutex<()>,
     pub native_dialog: AtomicBool,
+    observation: std::sync::Mutex<u64>,
 }
 impl Service {
     pub fn new(platform: Box<dyn SmbPlatform>) -> Self {
@@ -17,12 +18,27 @@ impl Service {
             platform,
             mutation: tokio::sync::Mutex::new(()),
             native_dialog: AtomicBool::new(false),
+            observation: std::sync::Mutex::new(0),
         }
     }
     pub fn busy(&self) -> bool {
         self.native_dialog.load(Ordering::SeqCst)
     }
+    pub fn begin_observation(&self) -> u64 {
+        let mut epoch = self.observation.lock().unwrap();
+        *epoch += 1;
+        *epoch
+    }
+    pub fn apply_observation<T>(&self, epoch: u64, apply: impl FnOnce() -> T) -> Option<T> {
+        let current = self.observation.lock().unwrap();
+        if *current == epoch {
+            Some(apply())
+        } else {
+            None
+        }
+    }
     pub async fn snapshot(&self) -> Snapshot {
+        let observation_id = self.begin_observation();
         let (status, shares, address) = tokio::join!(
             self.platform.get_service_status(),
             self.platform.list_shares(),
@@ -42,6 +58,7 @@ impl Service {
             (String::new(), true)
         });
         Snapshot {
+            observation_id,
             status,
             shares,
             address,
@@ -54,12 +71,14 @@ impl Service {
             .mutation
             .try_lock()
             .map_err(|_| AppError::new("BUSY", "操作正在进行中"))?;
+        self.begin_observation();
         let start = std::time::Instant::now();
         let result = if enabled {
             self.platform.enable_service().await
         } else {
             self.platform.disable_service().await
         };
+        self.begin_observation();
         audit::record(
             if enabled {
                 "enable_service"
@@ -248,6 +267,13 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn service_mutation_invalidates_preexisting_observation() {
+        let (service, _) = setup();
+        let observation = service.begin_observation();
+        service.set_enabled(false).await.unwrap();
+        assert_eq!(service.apply_observation(observation, || true), None);
+    }
+    #[tokio::test]
     async fn disabling_preserves_all_records() {
         let (s, d) = setup();
         d.lock().unwrap().shares.push(share("/missing"));
@@ -304,5 +330,20 @@ mod tests {
         let _lock = s.mutation.lock().await;
         assert_eq!(s.set_enabled(false).await.unwrap_err().code, "BUSY");
         assert!(d.lock().unwrap().enabled);
+    }
+}
+#[cfg(test)]
+mod observation_tests {
+    use super::*;
+    #[tokio::test]
+    async fn stale_observations_cannot_publish_after_new_refresh_or_service_write() {
+        let service = Service::new(crate::platform::native());
+        let first = service.begin_observation();
+        let second = service.begin_observation();
+        assert_eq!(service.apply_observation(first, || true), None);
+        assert_eq!(service.apply_observation(second, || true), Some(true));
+        // A real service write is deliberately not performed by this test.
+        service.begin_observation();
+        assert_eq!(service.apply_observation(second, || true), None);
     }
 }

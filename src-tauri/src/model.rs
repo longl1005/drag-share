@@ -19,6 +19,8 @@ pub enum ServiceStatus {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    #[serde(skip)]
+    pub observation_id: u64,
     pub status: ServiceStatus,
     pub shares: Vec<ShareItem>,
     pub address: String,

@@ -42,7 +42,7 @@ fn outcome(result: Result<()>) -> Result<Outcome> {
 #[tauri::command]
 pub async fn snapshot(app: AppHandle, state: State<'_, Service>) -> Result<Snapshot> {
     let s = state.snapshot().await;
-    desktop::update(&app, s.status);
+    desktop::update(&app, s.status, s.observation_id);
     Ok(s)
 }
 #[tauri::command]
@@ -53,8 +53,18 @@ pub async fn set_enabled(
 ) -> Result<Outcome> {
     let _interaction = Interaction::begin(&app, &state)?;
     let r = state.set_enabled(enabled).await;
+    if !enabled && r.is_ok() {
+        // Release immediately; address/share refresh can be slower than service shutdown.
+        if let Some(awake) = app.try_state::<crate::awake::AwakeState>() {
+            awake
+                .0
+                .lock()
+                .unwrap()
+                .set_status(crate::model::ServiceStatus::Disabled)?;
+        }
+    }
     let s = state.snapshot().await;
-    desktop::update(&app, s.status);
+    desktop::update(&app, s.status, s.observation_id);
     let _ = app.emit("refresh", ());
     outcome(r)
 }

@@ -1,4 +1,5 @@
 use crate::{
+    awake::{AwakeManager, AwakeState, NativeDriver},
     commands,
     error::{AppError, Result},
     model::ServiceStatus,
@@ -77,6 +78,14 @@ fn menu(app: &AppHandle, status: ServiceStatus) -> tauri::Result<Menu<tauri::Wry
         app.autolaunch().is_enabled().unwrap_or(false),
         None::<&str>,
     )?;
+    let keep_awake = CheckMenuItem::with_id(
+        app,
+        "keep-awake",
+        "共享时保持唤醒",
+        cfg!(target_os = "macos"),
+        app.state::<AwakeState>().0.lock().unwrap().enabled(),
+        None::<&str>,
+    )?;
     let about = MenuItem::with_id(app, "about", "关于 SMB 共享助手", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出应用", true, Some("CmdOrCtrl+Q"))?;
     let sep1 = PredefinedMenuItem::separator(app)?;
@@ -84,23 +93,38 @@ fn menu(app: &AppHandle, status: ServiceStatus) -> tauri::Result<Menu<tauri::Wry
     Menu::with_items(
         app,
         &[
-            &toggle, &add, &sep1, &settings, &autostart, &sep2, &about, &quit,
+            &toggle,
+            &add,
+            &sep1,
+            &settings,
+            &keep_awake,
+            &autostart,
+            &sep2,
+            &about,
+            &quit,
         ],
     )
 }
-pub fn update(app: &AppHandle, status: ServiceStatus) {
-    if let Some(tray) = app.tray_by_id("main") {
-        let _ = tray.set_icon(Some(icon(status)));
-        let _ = tray.set_icon_as_template(status != ServiceStatus::Enabled);
-        let _ = tray.set_tooltip(Some(match status {
-            ServiceStatus::Enabled => "SMB 共享助手 · 共享已开启",
-            ServiceStatus::Disabled => "SMB 共享助手 · 共享已关闭",
-            ServiceStatus::Unknown => "SMB 共享助手 · 状态待确认",
-        }));
-        if let Ok(menu) = menu(app, status) {
-            let _ = tray.set_menu(Some(menu));
+pub fn update(app: &AppHandle, status: ServiceStatus, observation: u64) {
+    app.state::<Service>().apply_observation(observation, || {
+        if let Some(state) = app.try_state::<AwakeState>() {
+            if let Err(e) = state.0.lock().unwrap().set_status(status) {
+                let _ = app.emit("operation-error", e);
+            }
         }
-    }
+        if let Some(tray) = app.tray_by_id("main") {
+            let _ = tray.set_icon(Some(icon(status)));
+            let _ = tray.set_icon_as_template(status != ServiceStatus::Enabled);
+            let _ = tray.set_tooltip(Some(match status {
+                ServiceStatus::Enabled => "SMB 共享助手 · 共享已开启",
+                ServiceStatus::Disabled => "SMB 共享助手 · 共享已关闭",
+                ServiceStatus::Unknown => "SMB 共享助手 · 状态待确认",
+            }));
+            if let Ok(menu) = menu(app, status) {
+                let _ = tray.set_menu(Some(menu));
+            }
+        }
+    });
 }
 pub fn toggle_panel(app: &AppHandle) {
     if app.state::<Service>().busy() {
@@ -196,6 +220,26 @@ fn dispatch(app: &AppHandle, id: &str) {
                 }
             }
             "settings" => commands::open_settings().await,
+            "keep-awake" => {
+                let service = app.state::<Service>();
+                let observation = service.begin_observation();
+                let status = service
+                    .platform
+                    .get_service_status()
+                    .await
+                    .unwrap_or(ServiceStatus::Unknown);
+                let result = service
+                    .apply_observation(observation, || {
+                        app.state::<AwakeState>()
+                            .0
+                            .lock()
+                            .unwrap()
+                            .toggle_preference(status)
+                    })
+                    .unwrap_or_else(|| Err(AppError::new("BUSY", "共享状态已更新，请重试")));
+                update(&app, status, observation);
+                result
+            }
             "autostart" => {
                 let result = (|| {
                     let current = app.autolaunch().is_enabled()?;
@@ -206,20 +250,15 @@ fn dispatch(app: &AppHandle, id: &str) {
                     }
                 })()
                 .map_err(AppError::io);
-                let status = app
-                    .state::<Service>()
-                    .platform
-                    .get_service_status()
-                    .await
-                    .unwrap_or(ServiceStatus::Unknown);
-                update(&app, status);
+                let snapshot = app.state::<Service>().snapshot().await;
+                update(&app, snapshot.status, snapshot.observation_id);
                 result
             }
             "about" => {
                 let state = app.state::<Service>();
                 let result = if let Ok(_interaction) = commands::Interaction::begin(&app, &state) {
                     let handle = app.clone();
-                    let _=tauri::async_runtime::spawn_blocking(move||handle.dialog().message("SMB 共享助手 0.1.1\n轻松管理本机 SMB 文件共享\n\n快捷键：Control + Option + S\n所有数据与日志仅保存在本机。\n关闭服务会保留共享目录配置。").title("关于 SMB 共享助手").blocking_show()).await;
+                    let _=tauri::async_runtime::spawn_blocking(move||handle.dialog().message("SMB 共享助手 0.1.2\n轻松管理本机 SMB 文件共享\n\n快捷键：Control + Option + S\n所有数据与日志仅保存在本机。\n关闭服务会保留共享目录配置。").title("关于 SMB 共享助手").blocking_show()).await;
                     Ok(())
                 } else {
                     Err(AppError::new("BUSY", "操作正在进行中"))
@@ -247,6 +286,15 @@ pub fn setup(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
     app.set_activation_policy(tauri::ActivationPolicy::Accessory);
     let handle = app.handle();
     handle.manage(WindowState::default());
+    let path = handle.path().app_config_dir()?.join("awake.json");
+    let manager = match AwakeManager::load(path.clone(), NativeDriver::default()) {
+        Ok(manager) => manager,
+        Err(e) => {
+            *handle.state::<WindowState>().warning.lock().unwrap() = Some(e.message);
+            AwakeManager::new(path, NativeDriver::default())
+        }
+    };
+    handle.manage(AwakeState(Mutex::new(manager)));
     TrayIconBuilder::with_id("main")
         .icon(icon(ServiceStatus::Unknown))
         .icon_as_template(true)
@@ -302,7 +350,7 @@ pub fn setup(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
     let app = handle.clone();
     tauri::async_runtime::spawn(async move {
         let s = app.state::<Service>().snapshot().await;
-        update(&app, s.status);
+        update(&app, s.status, s.observation_id);
     });
     Ok(())
 }

@@ -38,7 +38,7 @@
 
 | 平台 | 下载 | 状态 |
 | --- | --- | --- |
-| macOS 13+ · Apple Silicon（M1/M2/M3/M4 等 arm64 芯片） | [DMG 安装包](https://github.com/longl1005/drag-share/releases/download/v0.1.1/drag-share-0.1.1-macos-arm64.dmg) · [应用 ZIP](https://github.com/longl1005/drag-share/releases/download/v0.1.1/drag-share-0.1.1-macos-arm64.app.zip) | v0.1.1 可下载 |
+| macOS 13+ · Apple Silicon（M1/M2/M3/M4 等 arm64 芯片） | [DMG 安装包](https://github.com/longl1005/drag-share/releases/download/v0.1.2/drag-share-0.1.2-macos-arm64.dmg) · [应用 ZIP](https://github.com/longl1005/drag-share/releases/download/v0.1.2/drag-share-0.1.2-macos-arm64.app.zip) | v0.1.2 可下载 |
 | macOS · Intel | — | 尚未提供构建 |
 | Windows / Linux | — | 预留平台接口，尚未实现共享功能 |
 
@@ -48,10 +48,10 @@
 
 当前安装包使用 **ad-hoc 本地签名，未经过 Apple Developer ID 签名与公证**。如果 macOS 提示无法验证开发者，请在确认下载来源后，前往「系统设置 → 隐私与安全性」按系统提示允许打开。无需关闭 Gatekeeper。
 
-Release 同时附带 [SHA256SUMS.txt](https://github.com/longl1005/drag-share/releases/download/v0.1.1/SHA256SUMS.txt)。将校验文件与安装包放在同一目录后，可核对下载文件：
+Release 同时附带 [SHA256SUMS.txt](https://github.com/longl1005/drag-share/releases/download/v0.1.2/SHA256SUMS.txt)。将校验文件与安装包放在同一目录后，可核对下载文件：
 
 ```sh
-shasum -a 256 drag-share-0.1.1-macos-arm64.dmg
+shasum -a 256 drag-share-0.1.2-macos-arm64.dmg
 # 将输出与 SHA256SUMS.txt 中对应文件的值比较。
 ```
 
@@ -78,6 +78,7 @@ shasum -a 256 drag-share-0.1.1-macos-arm64.dmg
 - **Control + Option + S** 呼出面板；Esc 或点击面板外收起，原生操作期间保护面板。
 - 支持登录时静默启动，默认关闭，由用户在右键菜单中启用。
 - 一键打开系统共享设置，或在 Finder 中定位目录。
+- 右键菜单可勾选「共享时保持唤醒」：默认关闭，记住选择；共享开启期间阻止闲置自动休眠，允许屏幕熄灭。关闭共享、取消勾选或退出工具时自动释放。
 - 适配系统浅色、深色主题及原生毛玻璃面板。
 
 ## 快速上手
@@ -89,6 +90,15 @@ shasum -a 256 drag-share-0.1.1-macos-arm64.dmg
 5. **用完关闭**：点击「关闭共享」。目录配置保留，之后可以重新开启。
 
 例如，在另一台 Mac 的 Finder 中选择「前往 → 连接服务器」并粘贴地址；在 iPhone/iPad 的「文件」App 中选择「连接服务器」。其他设备可使用支持 SMB 的文件管理器或播放器。
+
+## 共享时保持唤醒
+
+在菜单栏图标上点击右键，勾选 **共享时保持唤醒**。共享服务开启时，应用会阻止 Mac 因闲置自动休眠，便于 iPhone 持续访问或播放共享文件。
+
+- 默认关闭，偏好保存在应用本地配置目录的 `awake.json`；重启应用后记住选择，确认 SMB 已开启后才生效。
+- 屏幕仍可正常熄灭；关闭共享、取消勾选或退出应用时释放限制。应用意外退出时，绑定应用进程的系统子进程也会自动结束。
+- 不保证合盖、手动选择休眠、低电量关机等情况下继续访问，也不提供公网访问功能。
+- 外部系统设置中的 SMB 变更在下次打开面板刷新时同步，不进行后台轮询。
 
 ## 本地运行与权限边界
 
@@ -119,7 +129,7 @@ shasum -a 256 drag-share-0.1.1-macos-arm64.dmg
 当前不支持。请先打开面板，再拖入底部虚线区域。
 
 **当前版本验证到了哪些范围？**  
-v0.1.1 已通过 41 项本地自动测试、Rust/TypeScript 检查、发布构建与原生只读自检，GitHub macOS CI 也已通过。真实管理员授权、其他设备传输、重启自启及多显示器等 OS 级行为仍需人工验收。详见[验证报告](docs/VERIFICATION.md)。
+v0.1.2 已通过 50 项本地自动测试、Rust/TypeScript 检查、发布构建与原生只读自检，GitHub macOS CI 也已通过。真实管理员授权、其他设备传输、重启自启及多显示器等 OS 级行为仍需人工验收。详见[验证报告](docs/VERIFICATION.md)。
 
 ## 从源码运行
 
@@ -179,7 +189,7 @@ src-tauri/target/release/drag-share --read-only-check
 
 ## Download and install
 
-Visit [Releases](https://github.com/longl1005/drag-share/releases/latest). Version 0.1.1 provides a **macOS 13+ Apple Silicon (arm64)** DMG and an application ZIP. Intel, Windows and Linux builds are not available in this release.
+Visit [Releases](https://github.com/longl1005/drag-share/releases/latest). Version 0.1.2 provides a **macOS 13+ Apple Silicon (arm64)** DMG and an application ZIP. Intel, Windows and Linux builds are not available in this release.
 
 Open the DMG and drag **SMB 共享助手.app** into Applications, or extract the ZIP and move the app there. Launch it and click its menu-bar icon. The app does not show a Dock icon or a main window on startup. The interface is currently Simplified Chinese.
 
@@ -193,6 +203,12 @@ The app is ad-hoc signed but has **no Developer ID signature or Apple notarizati
 - Copy host or URL-encoded folder addresses, including names containing Chinese text, spaces and quotes.
 - Toggle the panel with **Control + Option + S**, enable optional login startup, reveal folders in Finder and open sharing settings.
 - Follow system appearance; refresh when opened rather than polling in the background.
+
+## Keep the Mac awake while sharing
+
+Right-click the menu-bar icon and enable **共享时保持唤醒** (Keep awake while sharing). It is off by default and remembers your choice. While SMB is enabled, it prevents idle system sleep but allows display sleep. Disabling sharing, unchecking the option or quitting releases the assertion; the helper is also tied to the app process lifetime.
+
+Lid closure, explicit sleep and low-battery shutdown are not overridden. This does not enable Internet access. External SMB changes are reconciled when the panel refreshes, without background polling.
 
 ## Getting started
 
@@ -216,6 +232,6 @@ npm run tauri dev
 
 Use `npm run check` for frontend tests and build, `cargo test --manifest-path src-tauri/Cargo.toml --lib --locked` for backend tests, and `npm run tauri build` for native bundles. `scripts/package-release.sh` validates and collects distribution assets.
 
-Browser previews use isolated fixtures; the desktop app uses real system state. The release passed 41 local automated tests and macOS CI. Real administrator dialogs, device transfers, login startup, multi-monitor behavior and long-duration resource targets remain manual acceptance items. See the [verification report](docs/VERIFICATION.md) before treating these as validated.
+Browser previews use isolated fixtures; the desktop app uses real system state. The release passed 50 local automated tests and macOS CI. Real administrator dialogs, device transfers, login startup, multi-monitor behavior and long-duration resource targets remain manual acceptance items. See the [verification report](docs/VERIFICATION.md) before treating these as validated.
 
 Issues and focused pull requests are welcome. Include your app version, macOS version, chip architecture and reproduction steps, and redact private paths or network information from logs.
