@@ -13,7 +13,7 @@
 | Rust 格式与静态检查 | 通过 | cargo fmt --check；cargo clippy --all-targets --locked -- -D warnings |
 | 原生发布构建 | 通过 | Tauri Apple Silicon .app 与 DMG，包体均小于 20 MiB |
 | 原生只读自检 | 通过 | 实际查询系统状态、3 个共享记录、本机地址，warnings 为空；不修改服务与共享配置 |
-| 原生驻留采样 | 通过（短时） | 进程正常运行在 AppKit 事件循环；约 95 MiB RSS、28.4 MiB physical footprint，采样时 CPU 0.0% |
+| 原生驻留采样 | 通过（短时） | 进程正常运行在 AppKit 事件循环；主进程约 93 MiB RSS、28.4 MiB physical footprint，采样时 CPU 0.0% |
 | 独立代码审查 | 通过 | 状态冲突、授权期间隐藏、拖放范围及 About 互斥问题已修复，复审未发现剩余重要缺陷 |
 
 本机环境：macOS 27.0.1 / arm64，Node 22.22.3，Rust 1.92.0，Tauri 2.12.4。自动测试合计 39 项。所有界面截图使用隔离演示数据，不能证明真实设备连接已经成功。

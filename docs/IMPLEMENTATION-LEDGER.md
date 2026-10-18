@@ -12,5 +12,7 @@ Plan: docs/superpowers/plans/2026-10-18-drag-share.md
 - Ruling: prefer sharing JSON output to preserve whitespace, quotes/newlines in names; text fallback only for older unsupported-format tools.
 - Ruling: report Unknown when launchctl enabled override conflicts with actual loaded job — a disabled launch preference does not stop a still-running job.
 - Ruling: disable stripping only for host build-time proc-macros; macOS 27 dyld rejects their stripped LINKEDIT alignment (Rust #157750). Shipped executable remains stripped.
-- Task 5 in progress: final rebuild and native read-only checks; no production SMB changes or login-item writes.
-- Task 6 in progress: README, RTM and final test report. Manual checks explicitly separate from unattended evidence.
+- Task 5 complete: 17 Rust, 11 frontend and 11 browser tests pass; fmt/clippy/typecheck pass; native release and read-only check pass. No production SMB changes or login-item writes. Native UI automation timed out; manual OS-level checks explicitly documented.
+- Task 6: README, RTM and final test report committed. Local deliverable packaging and final GitHub synchronization are the remaining closing checks.
+
+- Packaging verification found the default linker-only ad-hoc signature did not seal bundle resources; explicitly configured macOS signingIdentity "-" so local bundles receive full ad-hoc resource signatures without Developer ID credentials.
