@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMB 共享助手 · 交互原型 (Tauri 2 + Vue 3 标准)</title>
+<style>
+  :root {
+    --bg: #ecebe6;
+    --panel: rgba(255, 255, 255, 0.88);
+    --panel-opaque: #ffffff;
+    --card: #ffffff;
+    --border: rgba(0, 0, 0, 0.1);
+    --border-hover: rgba(0, 0, 0, 0.2);
+    --text: #1d1d1f;
+    --text-2: #6e6e73;
+    --text-3: #9e9ea3;
+    --blue: #0a6edc;
+    --blue-bg: #e8f1fd;
+    --green: #2e7d32;
+    --green-bg: #eaf5eb;
+    --gray-fill: #f2f1ec;
+    --gray-hover: #e5e4de;
+    --red: #c62828;
+    --red-bg: #fdecec;
+    --shadow: 0 10px 36px rgba(0,0,0,0.14);
+    --radius: 12px;
+  }
+  [data-theme="dark"] {
+    --bg: #18181a;
+    --panel: rgba(36, 36, 40, 0.88);
+    --panel-opaque: #26262a;
+    --card: #2c2c30;
+    --border: rgba(255, 255, 255, 0.12);
+    --border-hover: rgba(255, 255, 255, 0.25);
+    --text: #f5f5f7;
+    --text-2: #a1a1a6;
+    --text-3: #6e6e73;
+    --blue: #4da3ff;
+    --blue-bg: #16324f;
+    --green: #5cc16a;
+    --green-bg: #18331d;
+    --gray-fill: #343438;
+    --gray-hover: #404044;
+    --red: #ff6b6b;
+    --red-bg: #402626;
+    --shadow: 0 10px 36px rgba(0,0,0,0.45);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #18181a;
+      --panel: rgba(36, 36, 40, 0.88);
+      --panel-opaque: #26262a;
+      --card: #2c2c30;
+      --border: rgba(255, 255, 255, 0.12);
+      --border-hover: rgba(255, 255, 255, 0.25);
+      --text: #f5f5f7;
+      --text-2: #a1a1a6;
+      --text-3: #6e6e73;
+      --blue: #4da3ff;
+      --blue-bg: #16324f;
+      --green: #5cc16a;
+      --green-bg: #18331d;
+      --gray-fill: #343438;
+      --gray-hover: #404044;
+      --red: #ff6b6b;
+      --red-bg: #402626;
+      --shadow: 0 10px 36px rgba(0,0,0,0.45);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro SC", "PingFang SC", "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding-bottom: 60px; font-size: 13px; line-height: 1.45;
+    user-select: none; -webkit-user-select: none;
+  }
+  .mono { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+
+  /* macOS 模拟菜单栏 */
+  .menubar {
+    width: 100%; height: 30px; background: var(--panel);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: center; padding: 0 18px; gap: 18px;
+    font-size: 12px; font-weight: 500; color: var(--text); position: sticky; top: 0; z-index: 100;
+  }
+  .menubar .apple-logo { font-size: 14px; opacity: 0.9; }
+  .menubar .spacer { flex: 1; }
+  .menubar .tray-area { display: flex; align-items: center; gap: 14px; }
+  .tray-btn {
+    width: 26px; height: 20px; border-radius: 4px; display: grid; place-items: center;
+    background: transparent; border: 0.5px solid transparent; cursor: pointer; transition: all .15s;
+    position: relative;
+  }
+  .tray-btn:hover, .tray-btn.active {
+    background: var(--blue-bg); border-color: var(--blue);
+  }
+  .tray-btn svg { display: block; }
+  .tray-btn .dot-status {
+    position: absolute; right: 2px; bottom: 2px; width: 4.5px; height: 4.5px;
+    border-radius: 50%; background: var(--green); border: 0.8px solid #fff;
+  }
+  .tray-btn.off .dot-status { background: var(--text-3); }
+
+  /* 模拟右键菜单 */
+  .context-menu {
+    position: absolute; width: 180px; background: var(--panel-opaque);
+    backdrop-filter: blur(28px); border: 0.5px solid var(--border);
+    border-radius: 8px; box-shadow: var(--shadow); padding: 4px; z-index: 200;
+    display: none; font-size: 12px;
+  }
+  .context-menu.show { display: block; }
+  .menu-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px; border-radius: 5px; cursor: pointer; color: var(--text);
+  }
+  .menu-item:hover { background: var(--blue); color: #fff; }
+  .menu-item.danger:hover { background: var(--red); color: #fff; }
+  .menu-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+
+  /* 居中展示舞台 */
+  .stage {
+    margin-top: 36px; display: flex; flex-direction: column; align-items: center; gap: 24px;
+    width: 100%; max-width: 600px;
+  }
+
+  /* 面板主体 320×440 */
+  .panel-wrapper { position: relative; }
+  .panel {
+    width: 320px; height: 440px; background: var(--panel);
+    backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    display: flex; flex-direction: column; overflow: hidden; position: relative;
+    transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), opacity .2s;
+  }
+  .panel.hidden { opacity: 0; pointer-events: none; transform: translateY(-8px) scale(0.98); }
+
+  .sec { padding: 13px 16px; }
+  .sec + .sec { border-top: 0.5px solid var(--border); }
+
+  /* 状态区域 (高约 96px) */
+  .status-row { display: flex; align-items: center; justify-content: space-between; }
+  .status-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px rgba(46,125,50,0.5); }
+  .dot.off { background: var(--text-3); box-shadow: none; }
+  .dot.unknown { background: #f59e0b; }
+
+  .switch {
+    width: 38px; height: 21px; border-radius: 11px; background: var(--green);
+    position: relative; transition: background .2s; cursor: pointer; border: none; outline: none;
+  }
+  .switch::after {
+    content: ""; position: absolute; width: 17px; height: 17px; border-radius: 50%;
+    background: #fff; top: 2px; left: 19px; transition: left .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .switch.off { background: var(--text-3); }
+  .switch.off::after { left: 2px; }
+
+  .addr-row { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; }
+  .addr { font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 210px; }
+  .copy-btn {
+    font-size: 11px; padding: 2px 9px; border-radius: 4px; border: 0.5px solid var(--border);
+    background: var(--card); color: var(--blue); cursor: pointer; font-weight: 500; transition: all .15s;
+  }
+  .copy-btn:hover { background: var(--blue-bg); border-color: var(--blue); }
+
+  .primary-btn {
+    margin-top: 11px; width: 100%; height: 31px; border-radius: 6px; border: none;
+    background: var(--blue-bg); color: var(--blue); font-size: 12.5px; font-weight: 600;
+    cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .primary-btn:hover { filter: brightness(0.96); }
+  .primary-btn.btn-off { background: var(--gray-fill); color: var(--text-2); }
+  .primary-btn.btn-off:hover { background: var(--gray-hover); }
+
+  /* 列表区域 (自适应) */
+  .list-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .list-head .t { font-size: 11.5px; font-weight: 500; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.3px; }
+  .list-head .add { font-size: 11.5px; color: var(--blue); cursor: pointer; background: none; border: none; font-weight: 600; padding: 2px 4px; border-radius: 3px; }
+  .list-head .add:hover { background: var(--blue-bg); }
+
+  .share-scroll { flex: 1; overflow-y: auto; padding: 0 12px; margin: 0 -12px; }
+  .share-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px;
+    cursor: default; transition: background .12s; position: relative;
+  }
+  .share-item:hover { background: var(--gray-fill); }
+  .share-item svg { flex: none; }
+  .share-item .name { flex: 1; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge {
+    font-size: 10.5px; padding: 1px 7px; border-radius: 6px; background: var(--gray-fill);
+    color: var(--text-2); white-space: nowrap; font-weight: 500;
+  }
+  .share-item:hover .badge { background: var(--card); }
+  .action-btn {
+    border: none; background: transparent; color: var(--text-3); font-size: 13px;
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1;
+  }
+  .action-btn:hover { background: var(--gray-hover); color: var(--text); }
+
+  /* 服务关闭时列表置灰 */
+  .disabled-mask .share-item { opacity: 0.45; pointer-events: none; }
+  .disabled-mask .list-head .add { opacity: 0.35; pointer-events: none; }
+
+  /* 拖拽放置区 (高 68px) */
+  .dropzone {
+    height: 60px; border: 1.2px dashed var(--border-hover); border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    color: var(--text-2); font-size: 11.5px; transition: all .15s; background: rgba(0,0,0,0.01);
+  }
+  .dropzone.hot { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); border-style: solid; transform: scale(1.01); }
+  .disabled-mask .dropzone { opacity: 0.4; pointer-events: none; }
+
+  /* 空态 */
+  .empty { text-align: center; padding: 32px 0 20px; }
+  .empty .icon {
+    width: 46px; height: 46px; border-radius: 50%; background: var(--gray-fill);
+    display: grid; place-items: center; margin: 0 auto 10px;
+  }
+  .empty .t { font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
+  .empty button {
+    padding: 6px 18px; border-radius: 6px; border: 0.5px solid var(--border);
+    background: var(--card); color: var(--blue); font-size: 12px; font-weight: 500; cursor: pointer;
+  }
+  .empty button:hover { background: var(--blue-bg); border-color: var(--blue); }
+
+  /* 骨架屏 */
+  .sk { background: var(--gray-fill); border-radius: 5px; animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+  /* Toast 提示 */
+  .toast {
+    position: absolute; top: 12px; left: 16px; right: 16px; z-index: 50;
+    background: var(--panel-opaque); border: 0.5px solid var(--border); color: var(--text);
+    border-radius: 7px; padding: 7px 12px; font-size: 12px; box-shadow: var(--shadow);
+    display: flex; justify-content: space-between; align-items: center;
+    animation: slideDown .2s ease-out;
+  }
+  .toast.error { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .toast.success { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  @keyframes slideDown { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* 快捷操作气泡菜单 */
+  .popover-menu {
+    position: absolute; right: 28px; top: 24px; background: var(--panel-opaque);
+    border: 0.5px solid var(--border); border-radius: 7px; box-shadow: var(--shadow);
+    padding: 3px; width: 130px; z-index: 60; display: none;
+  }
+  .popover-menu.show { display: block; }
+  .popover-item {
+    padding: 5px 8px; font-size: 11.5px; border-radius: 4px; cursor: pointer; color: var(--text);
+  }
+  .popover-item:hover { background: var(--blue); color: #fff; }
+  .popover-item.danger:hover { background: var(--red); color: #fff; }
+
+  /* 控制栏 (状态切换 / 主题切换) */
+  .ctrl-bar {
+    display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%;
+  }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .tab-btn {
+    padding: 5px 14px; border-radius: 999px; border: 0.5px solid var(--border);
+    background: var(--card); color: var(--text-2); font-size: 12px; cursor: pointer; transition: all .15s;
+  }
+  .tab-btn:hover { border-color: var(--border-hover); }
+  .tab-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 500; }
+
+  .theme-toggle {
+    display: flex; gap: 8px; align-items: center; font-size: 11.5px; color: var(--text-3);
+  }
+  .theme-toggle button {
+    border: 0.5px solid var(--border); background: var(--card); color: var(--text);
+    padding: 3px 10px; border-radius: 5px; cursor: pointer; font-size: 11px;
+  }
+  .theme-toggle button.active { background: var(--gray-fill); border-color: var(--blue); }
+
+  .footnote { font-size: 12px; color: var(--text-3); text-align: center; max-width: 520px; line-height: 1.6; }
+  .footnote a { color: var(--blue); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- macOS 菜单栏 -->
+<div class="menubar">
+  <span class="apple-logo"></span>
+  <span>访达</span>
+  <span>文件</span>
+  <span>编辑</span>
+  <span>显示</span>
+  <span class="spacer"></span>
+  <span class="mono" style="opacity:0.8">100%</span>
+  <span class="mono" id="timeStr">15:42</span>
+  <div class="tray-area">
+    <!-- 托盘图标：支持左键弹出面板，右键唤出菜单 -->
+    <div class="tray-btn" id="trayBtn" title="左键切换面板，右键系统菜单">
+      <svg width="14" height="12" viewBox="0 0 14 12" fill="none" stroke="currentColor" stroke-width="1.2">
+        <rect x="1" y="3.5" width="12" height="7.5" rx="1.5"/>
+        <path d="M7 1v4M4.8 3.2L7 5.4l2.2-2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="dot-status" id="trayDot"></span>
+    </div>
+  </div>
+</div>
+
+<!-- 托盘右键菜单 (FR-04) -->
+<div class="context-menu" id="trayMenu">
+  <div class="menu-item" id="menuToggleService">关闭共享服务</div>
+  <div class="menu-item" id="menuAddShare">添加共享目录...</div>
+  <div class="menu-divider"></div>
+  <div class="menu-item" id="menuOpenSysPref">系统共享设置...</div>
+  <div class="menu-item" id="menuToggleAutostart">开机自动启动 <span style="font-size:10px">✓</span></div>
+  <div class="menu-divider"></div>
+  <div class="menu-item" id="menuAbout">关于 SMB 共享助手</div>
+  <div class="menu-item danger" id="menuQuit">退出应用</div>
+</div>
+
+<!-- 主展示舞台 -->
+<div class="stage">
+  <div class="panel-wrapper">
+    <div class="panel" id="panel"></div>
+    <!-- 目录操作气泡菜单 -->
+    <div class="popover-menu" id="popMenu">
+      <div class="popover-item" id="popCopy">复制目录链接</div>
+      <div class="popover-item" id="popReveal">在访达中显示</div>
+      <div class="menu-divider" style="margin:2px 4px"></div>
+      <div class="popover-item danger" id="popRemove">取消共享</div>
+    </div>
+  </div>
+
+  <div class="ctrl-bar">
+    <div class="tabs" id="tabs">
+      <button class="tab-btn active" data-state="normal">正常态 (Running)</button>
+      <button class="tab-btn" data-state="off">服务关闭态 (Disabled)</button>
+      <button class="tab-btn" data-state="empty">空态 (Empty)</button>
+      <button class="tab-btn" data-state="loading">骨架加载态 (Loading)</button>
+      <button class="tab-btn" data-state="error">异常提示态 (Error)</button>
+    </div>
+
+    <div class="theme-toggle">
+      <span>主题切换：</span>
+      <button id="themeAuto" class="active">跟随系统</button>
+      <button id="themeLight">浅色 (Light)</button>
+      <button id="themeDark">深色 (Dark)</button>
+    </div>
+  </div>
+
+  <p class="footnote">
+    💡 <b>交互提示</b>：点击菜单栏右侧托盘图标可展开/收起面板；<b>右键托盘图标</b>可查看 macOS 原生级右键菜单；悬停目录列表项点击「···」可体验复制、访达定位与移除；拖拽任意文件或文件夹到面板底部可体验即时反馈。
+  </p>
+</div>
+
+<script>
+// 状态模型
+const state = {
+  serviceEnabled: true,
+  uiState: "normal", // normal, off, empty, loading, error
+  ip: "192.168.31.210",
+  shares: [
+    { name: "movies", path: "/Users/lilong/Movies", badge: "读写·访客", readonly: false },
+    { name: "Public", path: "/Users/lilong/Public", badge: "读写·访客", readonly: false },
+    { name: "Documents", path: "/Users/lilong/Documents", badge: "只读", readonly: true }
+  ],
+  panelVisible: true,
+  activePopIndex: null
+};
+
+const folderSvg = `<svg width="15" height="13" viewBox="0 0 15 13"><path d="M1 2.5h4.2l1.3 1.4H14v8H1z" fill="var(--blue)" opacity="0.22" stroke="var(--blue)" stroke-width="0.8"/></svg>`;
+
+// 渲染顶部状态区 (FR-08, FR-09, FR-13, FR-20)
+function renderStatusSection() {
+  const on = state.serviceEnabled;
+  const isErr = state.uiState === "error";
+  const dotCls = isErr ? "unknown" : (on ? "" : "off");
+  const title = isErr ? "服务状态异常" : (on ? "共享已开启" : "共享已关闭");
+  const switchCls = on && !isErr ? "" : "off";
+  const btnText = on ? "关闭共享服务" : "开启共享服务";
+  const btnClass = on ? "primary-btn btn-off" : "primary-btn";
+
+  return `
+    <div class="sec">
+      <div class="status-row">
+        <div class="status-title"><span class="dot ${dotCls}"></span><span>${title}</span></div>
+        <button class="switch ${switchCls}" id="mainSwitch" aria-label="服务开关"></button>
+      </div>
+      <div class="addr-row">
+        <span class="addr mono">smb://${state.ip}</span>
+        <button class="copy-btn" id="copyHostBtn">复制本机</button>
+      </div>
+      <button class="${btnClass}" id="primaryActionBtn">${btnText}</button>
+    </div>
+  `;
+}
+
+// 渲染共享列表区 (FR-12, FR-15, FR-16, FR-19, FR-24)
+function renderListSection() {
+  const on = state.serviceEnabled;
+  const items = state.shares.map((s, idx) => `
+    <div class="share-item" data-idx="${idx}">
+      ${folderSvg}
+      <span class="name" title="${s.path}">${s.name}</span>
+      <span class="badge">${s.badge}</span>
+      <button class="action-btn" data-idx="${idx}" title="更多操作">···</button>
+    </div>
+  `).join("");
+
+  return `
+    <div class="sec" style="flex:1; display:flex; flex-direction:column; min-height:0">
+      <div class="list-head">
+        <span class="t">共享目录 (${state.shares.length})</span>
+        <button class="add" id="addBtn">+ 添加目录</button>
+      </div>
+      <div class="share-scroll">${items}</div>
+    </div>
+  `;
+}
+
+// 渲染空状态 (FR-14)
+function renderEmptySection() {
+  return `
+    <div class="sec" style="flex:1; display:flex; flex-direction:column; justify-content:center">
+      <div class="empty">
+        <div class="icon">${folderSvg.replace('width="15" height="13"','width="22" height="19"')}</div>
+        <div class="t">还没有共享目录</div>
+        <button id="emptyAddBtn">选择目录共享</button>
+      </div>
+    </div>
+  `;
+}
+
+// 渲染骨架屏加载态
+function renderLoadingSection() {
+  return `
+    <div class="sec">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="sk" style="width:8px;height:8px;border-radius:50%"></span>
+        <span class="sk" style="width:70px;height:14px"></span>
+        <span class="sk" style="width:38px;height:21px;border-radius:11px;margin-left:auto"></span>
+      </div>
+      <div class="sk" style="width:160px;height:12px;margin-top:12px"></div>
+      <div class="sk" style="width:100%;height:31px;margin-top:11px;border-radius:6px"></div>
+    </div>
+    <div class="sec" style="flex:1">
+      <div class="sk" style="width:70px;height:12px;margin-bottom:14px"></div>
+      <div class="sk" style="height:28px;margin-bottom:8px"></div>
+      <div class="sk" style="height:28px;margin-bottom:8px"></div>
+      <div class="sk" style="height:28px"></div>
+    </div>
+  `;
+}
+
+// 渲染底部放置区 (FR-18)
+function renderDropSection() {
+  return `
+    <div class="sec">
+      <div class="dropzone" id="dropZone">
+        <svg width="15" height="13" viewBox="0 0 14 12" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M7 1v7M4.5 4.5L7 7l2.5-2.5M2 10.5h10" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>拖入文件夹到此处共享</span>
+      </div>
+    </div>
+  `;
+}
+
+// Toast 提示工具
+function showToast(text, type = "normal") {
+  const old = document.querySelector(".toast");
+  if (old) old.remove();
+  const t = document.createElement("div");
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${text}</span><span style="cursor:pointer;opacity:0.6">✕</span>`;
+  t.querySelector("span:last-child").onclick = () => t.remove();
+  document.getElementById("panel").appendChild(t);
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 2800);
+}
+
+// 整体面板主渲染
+function render() {
+  const panel = document.getElementById("panel");
+  const trayDot = document.getElementById("trayDot");
+  const menuToggle = document.getElementById("menuToggleService");
+
+  // 同步托盘与右键菜单
+  if (state.serviceEnabled) {
+    trayDot.parentElement.classList.remove("off");
+    menuToggle.textContent = "关闭共享服务";
+  } else {
+    trayDot.parentElement.classList.add("off");
+    menuToggle.textContent = "开启共享服务";
+  }
+
+  let html = "";
+  if (state.uiState === "loading") {
+    html = renderLoadingSection() + renderDropSection();
+  } else if (state.uiState === "empty") {
+    html = renderStatusSection() + renderEmptySection() + renderDropSection();
+  } else if (state.uiState === "off") {
+    html = renderStatusSection() + `<div class="disabled-mask" style="display:flex;flex-direction:column;flex:1">` + renderListSection() + renderDropSection() + `</div>`;
+  } else if (state.uiState === "error") {
+    html = renderStatusSection() + renderListSection() + renderDropSection();
+  } else {
+    html = renderStatusSection() + renderListSection() + renderDropSection();
+  }
+
+  panel.innerHTML = html;
+
+  if (state.uiState === "error") {
+    showToast("操作执行失败：需要管理员授权", "error");
+  }
+
+  bindEvents();
+}
+
+// 事件绑定
+function bindEvents() {
+  const panel = document.getElementById("panel");
+
+  // 开关与主按钮点击
+  const toggleService = () => {
+    state.serviceEnabled = !state.serviceEnabled;
+    state.uiState = state.serviceEnabled ? "normal" : "off";
+    showToast(state.serviceEnabled ? "SMB 共享服务已开启" : "SMB 共享服务已关闭", "success");
+    // 更新外部 tab 按钮
+    document.querySelectorAll(".tab-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.state === (state.serviceEnabled ? "normal" : "off"));
+    });
+    render();
+  };
+
+  const sw = document.getElementById("mainSwitch");
+  if (sw) sw.onclick = toggleService;
+
+  const pBtn = document.getElementById("primaryActionBtn");
+  if (pBtn) pBtn.onclick = toggleService;
+
+  // 复制本机地址
+  const copyHost = document.getElementById("copyHostBtn");
+  if (copyHost) copyHost.onclick = () => {
+    navigator.clipboard?.writeText(`smb://${state.ip}`);
+    showToast(`已复制: smb://${state.ip}`, "success");
+  };
+
+  // 添加目录
+  const addFn = () => {
+    const name = prompt("请输入要共享的测试文件夹名称:", "Photos");
+    if (name) {
+      if (state.shares.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+        showToast("该目录已在共享列表中", "error");
+        return;
+      }
+      state.shares.push({ name, path: `/Users/lilong/${name}`, badge: "读写·访客", readonly: false });
+      if (state.uiState === "empty") state.uiState = "normal";
+      showToast(`已添加共享: ${name}`, "success");
+      render();
+    }
+  };
+  const addBtn = document.getElementById("addBtn");
+  if (addBtn) addBtn.onclick = addFn;
+  const emptyAddBtn = document.getElementById("emptyAddBtn");
+  if (emptyAddBtn) emptyAddBtn.onclick = addFn;
+
+  // 目录列表操作
+  panel.querySelectorAll(".action-btn").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx, 10);
+      state.activePopIndex = idx;
+      const rect = btn.getBoundingClientRect();
+      const pop = document.getElementById("popMenu");
+      pop.style.top = `${rect.top - panel.getBoundingClientRect().top + 22}px`;
+      pop.classList.add("show");
+    };
+  });
+
+  // 双击列表项复制
+  panel.querySelectorAll(".share-item").forEach(item => {
+    item.ondblclick = () => {
+      const idx = parseInt(item.dataset.idx, 10);
+      const s = state.shares[idx];
+      const url = `smb://${state.ip}/${encodeURIComponent(s.name)}`;
+      showToast(`已复制: ${url}`, "success");
+    };
+  });
+
+  // 放置区拖拽事件反馈 (FR-18)
+  const dz = document.getElementById("dropZone");
+  if (dz) {
+    ["dragenter", "dragover"].forEach(ev => dz.addEventListener(ev, e => {
+      e.preventDefault();
+      dz.classList.add("hot");
+    }));
+    ["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, () => {
+      dz.classList.remove("hot");
+    }));
+    dz.addEventListener("drop", (e) => {
+      e.preventDefault();
+      showToast("检测到拖入文件夹，已自动完成添加", "success");
+    });
+  }
+}
+
+// 气泡菜单点击处理
+document.getElementById("popCopy").onclick = () => {
+  const s = state.shares[state.activePopIndex];
+  if (s) {
+    const url = `smb://${state.ip}/${encodeURIComponent(s.name)}`;
+    showToast(`已复制: ${url}`, "success");
+  }
+  document.getElementById("popMenu").classList.remove("show");
+};
+document.getElementById("popReveal").onclick = () => {
+  const s = state.shares[state.activePopIndex];
+  if (s) showToast(`已在访达中定位: ${s.path}`, "success");
+  document.getElementById("popMenu").classList.remove("show");
+};
+document.getElementById("popRemove").onclick = () => {
+  const s = state.shares[state.activePopIndex];
+  if (s && confirm(`确定要停止共享「${s.name}」吗？`)) {
+    state.shares.splice(state.activePopIndex, 1);
+    if (state.shares.length === 0) state.uiState = "empty";
+    showToast(`已移除共享: ${s.name}`, "normal");
+    render();
+  }
+  document.getElementById("popMenu").classList.remove("show");
+};
+
+// 全局点击收起气泡菜单
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#popMenu") && !e.target.closest(".action-btn")) {
+    document.getElementById("popMenu").classList.remove("show");
+  }
+  if (!e.target.closest("#trayMenu") && !e.target.closest("#trayBtn")) {
+    document.getElementById("trayMenu").classList.remove("show");
+  }
+});
+
+// 状态 Tab 切换
+document.getElementById("tabs").onclick = (e) => {
+  const btn = e.target.closest(".tab-btn");
+  if (!btn) return;
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  state.uiState = btn.dataset.state;
+  if (state.uiState === "off") {
+    state.serviceEnabled = false;
+  } else if (state.uiState === "normal") {
+    state.serviceEnabled = true;
+  }
+  render();
+};
+
+// 托盘左键点击：显隐面板
+const trayBtn = document.getElementById("trayBtn");
+trayBtn.onclick = (e) => {
+  e.stopPropagation();
+  state.panelVisible = !state.panelVisible;
+  const p = document.getElementById("panel");
+  trayBtn.classList.toggle("active", state.panelVisible);
+  p.classList.toggle("hidden", !state.panelVisible);
+  if (state.panelVisible) {
+    p.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+};
+
+// 托盘右键点击：原生风格菜单
+trayBtn.oncontextmenu = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const menu = document.getElementById("trayMenu");
+  const rect = trayBtn.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.left = `${Math.min(window.innerWidth - 190, rect.left - 100)}px`;
+  menu.classList.add("show");
+};
+
+// 托盘右键菜单项功能
+document.getElementById("menuToggleService").onclick = () => {
+  state.serviceEnabled = !state.serviceEnabled;
+  state.uiState = state.serviceEnabled ? "normal" : "off";
+  showToast(state.serviceEnabled ? "服务已开启" : "服务已关闭", "success");
+  render();
+};
+document.getElementById("menuAddShare").onclick = () => {
+  document.getElementById("addBtn")?.click();
+};
+document.getElementById("menuOpenSysPref").onclick = () => {
+  showToast("正在打开 macOS「系统设置 → 通用 → 共享」...", "normal");
+};
+document.getElementById("menuToggleAutostart").onclick = () => {
+  showToast("已更新登录开机自启配置", "success");
+};
+document.getElementById("menuAbout").onclick = () => {
+  alert("SMB 共享助手 (跨平台版)\n版本: v1.0.0-beta\n基于 Tauri 2 + Vue 3 构建");
+};
+document.getElementById("menuQuit").onclick = () => {
+  if (confirm("确定要退出 SMB 共享助手吗？")) {
+    document.getElementById("panel").classList.add("hidden");
+    trayBtn.style.opacity = "0.3";
+    showToast("进程已退出", "normal");
+  }
+};
+
+// 主题切换
+const setTheme = (mode) => {
+  if (mode === "auto") {
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    document.documentElement.setAttribute("data-theme", mode);
+  }
+  document.getElementById("themeAuto").classList.toggle("active", mode === "auto");
+  document.getElementById("themeLight").classList.toggle("active", mode === "light");
+  document.getElementById("themeDark").classList.toggle("active", mode === "dark");
+};
+document.getElementById("themeAuto").onclick = () => setTheme("auto");
+document.getElementById("themeLight").onclick = () => setTheme("light");
+document.getElementById("themeDark").onclick = () => setTheme("dark");
+
+// 初始化时间与首屏
+const updateTime = () => {
+  const d = new Date();
+  document.getElementById("timeStr").textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+setInterval(updateTime, 1000);
+updateTime();
+
+render();
+</script>
+</body>
+</html>
