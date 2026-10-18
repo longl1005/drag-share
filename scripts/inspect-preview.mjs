@@ -1,0 +1,3 @@
+import {chromium} from '@playwright/test';
+const browser=await chromium.launch();const page=await browser.newPage({viewport:{width:320,height:440},deviceScaleFactor:2});await page.goto('http://127.0.0.1:1420/?preview=normal&theme=light');await page.waitForFunction(()=>document.querySelector('button.switch')?.getAttribute('aria-checked')==='true');
+console.log(await page.locator('button.switch').evaluate(e=>({class:e.className,disabled:e.disabled,checked:e.getAttribute('aria-checked'),bg:getComputedStyle(e).backgroundColor,html:e.outerHTML})));await page.screenshot({path:'test-results/normal-inspected.png'});await browser.close();

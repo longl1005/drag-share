@@ -37,3 +37,8 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+
+# macOS 27 dyld rejects string tables produced by stripping host proc-macro dylibs.
+# Keep build-time host libraries intact; the shipped executable remains stripped.
+[profile.release.build-override]
+strip = false
