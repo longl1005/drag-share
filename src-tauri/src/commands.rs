@@ -202,6 +202,9 @@ pub async fn open_settings() -> Result<()> {
 }
 #[tauri::command]
 pub fn hide_panel(app: AppHandle) -> Result<()> {
+    if app.state::<Service>().busy() {
+        return Ok(());
+    }
     if let Some(w) = app.get_webview_window("main") {
         w.hide().map_err(AppError::io)?;
     }

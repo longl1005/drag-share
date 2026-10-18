@@ -6,3 +6,4 @@ release/
 .superpowers/
 test-results/
 playwright-report/
+src-tauri/gen/

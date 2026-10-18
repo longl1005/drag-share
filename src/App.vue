@@ -5,6 +5,7 @@ import {getCurrentWebviewWindow} from '@tauri-apps/api/webviewWindow';
 import {invoke} from '@tauri-apps/api/core';
 import {bridge,native} from './bridge';
 import {useShare} from './useShare';
+import {insideDropZone} from './drop';
 import type {AppError,DesktopBridge} from './types';
 import StatusSection from './components/StatusSection.vue';
 import ShareList from './components/ShareList.vue';
@@ -15,7 +16,7 @@ const {data,loading,busy,nativeBusy,toast,canManage}=c;
 const hot=ref(false),unlisteners:UnlistenFn[]=[];let disposed=false;
 const unavailable=computed(()=>data.value.warnings.some(w=>w.includes('共享目录')));
 async function attach<T>(event:string,handler:(payload:T)=>void){const off=await listen<T>(event,e=>handler(e.payload));if(disposed)off();else unlisteners.push(off);}
-function key(e:KeyboardEvent){if(e.key==='Escape'){hot.value=false;void selected.value.hide();}if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='q'&&native){e.preventDefault();void invoke('request_quit');}}
+function key(e:KeyboardEvent){if(e.key==='Escape'&&!busy.value&&!nativeBusy.value){hot.value=false;void selected.value.hide();}if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='q'&&native){e.preventDefault();void invoke('request_quit');}}
 onMounted(async()=>{
  document.addEventListener('keydown',key);
  if(!native){selected.value=(await import('./preview')).previewBridge();const theme=new URLSearchParams(location.search).get('theme');if(theme==='light'||theme==='dark')document.documentElement.dataset.theme=theme;}
@@ -24,8 +25,8 @@ onMounted(async()=>{
   const off=await getCurrentWebviewWindow().onDragDropEvent(event=>{
    const payload=event.payload;
    if(payload.type==='enter'||payload.type==='over'){
-    const dpr=window.devicePixelRatio||1;hot.value=canManage.value&&payload.position.y/dpr>=340;
-   }else if(payload.type==='drop'){const accept=hot.value;hot.value=false;if(accept)void c.drop(payload.paths);}else hot.value=false;
+    const rect=document.querySelector('.dropzone')?.getBoundingClientRect();hot.value=canManage.value&&!!rect&&insideDropZone(payload.position,rect,window.devicePixelRatio||1);
+   }else if(payload.type==='drop'){const rect=document.querySelector('.dropzone')?.getBoundingClientRect();const accept=canManage.value&&!!rect&&insideDropZone(payload.position,rect,window.devicePixelRatio||1);hot.value=false;if(accept)void c.drop(payload.paths);}else hot.value=false;
   });if(disposed)off();else unlisteners.push(off);
   const warning=await invoke<string|null>('startup_warning');if(warning)c.notify(warning,true);
  }

@@ -103,6 +103,9 @@ pub fn update(app: &AppHandle, status: ServiceStatus) {
     }
 }
 pub fn toggle_panel(app: &AppHandle) {
+    if app.state::<Service>().busy() {
+        return;
+    }
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible().unwrap_or(false) {
             let _ = window.hide();
@@ -214,10 +217,14 @@ fn dispatch(app: &AppHandle, id: &str) {
             }
             "about" => {
                 let state = app.state::<Service>();
-                let _interaction = commands::Interaction::begin(&app, &state);
-                let handle = app.clone();
-                let _=tauri::async_runtime::spawn_blocking(move||handle.dialog().message("SMB 共享助手 0.1.0\n轻松管理本机 SMB 文件共享\n\n快捷键：Control + Option + S\n所有数据与日志仅保存在本机。\n关闭服务会保留共享目录配置。").title("关于 SMB 共享助手").blocking_show()).await;
-                Ok(())
+                let result = if let Ok(_interaction) = commands::Interaction::begin(&app, &state) {
+                    let handle = app.clone();
+                    let _=tauri::async_runtime::spawn_blocking(move||handle.dialog().message("SMB 共享助手 0.1.0\n轻松管理本机 SMB 文件共享\n\n快捷键：Control + Option + S\n所有数据与日志仅保存在本机。\n关闭服务会保留共享目录配置。").title("关于 SMB 共享助手").blocking_show()).await;
+                    Ok(())
+                } else {
+                    Err(AppError::new("BUSY", "操作正在进行中"))
+                };
+                result
             }
             "quit" => {
                 if app.state::<Service>().busy() {
@@ -261,6 +268,15 @@ pub fn setup(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
         .on_menu_event(|app, event| dispatch(app, event.id.as_ref()))
         .build(app)?;
     if let Some(window) = handle.get_webview_window("main") {
+        #[cfg(target_os = "macos")]
+        if let Err(e) = window_vibrancy::apply_vibrancy(
+            &window,
+            window_vibrancy::NSVisualEffectMaterial::Popover,
+            None,
+            Some(12.0),
+        ) {
+            eprintln!("Native vibrancy unavailable: {e}");
+        }
         let app = handle.clone();
         window.on_window_event(move |event| match event {
             tauri::WindowEvent::Focused(false) => {
@@ -274,9 +290,7 @@ pub fn setup(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
             }
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
-                if let Some(w) = app.get_webview_window("main") {
-                    let _ = w.hide();
-                }
+                let _ = commands::hide_panel(app.clone());
             }
             _ => {}
         });

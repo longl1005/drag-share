@@ -20,13 +20,15 @@ mod tests {
         assert!(parse_shares("name: incomplete\n").is_err());
     }
     #[test]
-    fn disabled_override_wins_over_loaded_state() {
+    fn conflicting_override_and_loaded_state_are_never_reported_as_safe() {
+        assert!(parse_status("\"com.apple.smbd\" => disabled", true).is_err());
+        assert!(parse_status("\"com.apple.smbd\" => enabled", false).is_err());
         assert_eq!(
-            parse_status("\"com.apple.smbd\" => disabled", true).unwrap(),
+            parse_status("\"com.apple.smbd\" => disabled", false).unwrap(),
             ServiceStatus::Disabled
         );
         assert_eq!(
-            parse_status("\"com.apple.smbd\" => enabled", false).unwrap(),
+            parse_status("\"com.apple.smbd\" => enabled", true).unwrap(),
             ServiceStatus::Enabled
         );
         assert_eq!(
@@ -54,8 +56,12 @@ pub fn parse_status(raw: &str, loaded: bool) -> Result<ServiceStatus> {
             .trim()
             .trim_end_matches(';');
         return match value {
-            "disabled" | "true" => Ok(ServiceStatus::Disabled),
-            "enabled" | "false" => Ok(ServiceStatus::Enabled),
+            "disabled" | "true" if !loaded => Ok(ServiceStatus::Disabled),
+            "enabled" | "false" if loaded => Ok(ServiceStatus::Enabled),
+            "disabled" | "true" | "enabled" | "false" => Err(AppError::new(
+                "STATUS_CONFLICT",
+                "系统共享开关与服务加载状态不一致，请检查系统共享设置",
+            )),
             _ => Err(AppError::new("PARSE_ERROR", "无法识别系统共享服务状态")),
         };
     }

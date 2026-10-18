@@ -6,7 +6,7 @@ for(const theme of ['light','dark']){
    await page.goto(`/?preview=${state}&theme=${theme}`);
    if(state==='normal'){await expect(page.getByRole('heading',{name:'共享已开启'})).toBeVisible();await expect(page.getByText('movies',{exact:true})).toBeVisible();}
    if(state==='off'){await expect(page.getByRole('heading',{name:'共享已关闭'})).toBeVisible();await expect(page.getByRole('button',{name:'＋ 添加',exact:true})).toBeDisabled();}
-   if(state==='empty'){await expect(page.getByText('还没有共享目录')).toBeVisible();await expect(page.getByRole('button',{name:'选择目录共享',exact:true})).toBeEnabled();}
+   if(state==='empty'){await expect(page.getByText('还没有共享目录')).toBeVisible();await expect(page.getByRole('button',{name:'选择目录共享',exact:true})).toBeEnabled();const list=await page.locator('.list-section').boundingBox();const button=await page.locator('.empty-add').boundingBox();expect(button!.y+button!.height).toBeLessThanOrEqual(list!.y+list!.height);}
    if(state==='loading')await expect(page.getByLabel('正在加载共享目录')).toBeVisible();
    if(state==='error'){await expect(page.getByText('暂时无法读取共享目录')).toBeVisible();await expect(page.getByRole('switch')).toBeDisabled();}
    await expect(page.locator('.panel')).toHaveCSS('width','320px');
