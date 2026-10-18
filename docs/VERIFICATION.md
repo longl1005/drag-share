@@ -11,7 +11,8 @@
 | Playwright | 11/11 通过 | 明暗两套主题 × 正常/关闭/空/加载/异常状态，以及开关/复制/菜单交互；空态按钮边界断言 |
 | 前端构建 | 通过 | vue-tsc 严格类型检查和 Vite 生产构建 |
 | Rust 格式与静态检查 | 通过 | cargo fmt --check；cargo clippy --all-targets --locked -- -D warnings |
-| 原生发布构建 | 通过 | Tauri Apple Silicon .app 与 DMG，包体均小于 20 MiB |
+| 原生发布构建 | 通过 | Tauri Apple Silicon .app 4.01 MiB、DMG 1.85 MiB，包体均小于 20 MiB |
+| 交付完整性 | 通过 | 完整 ad-hoc 资源签名通过 codesign --verify --deep --strict；hdiutil verify 通过；附 ZIP 与 SHA-256 |
 | 原生只读自检 | 通过 | 实际查询系统状态、3 个共享记录、本机地址，warnings 为空；不修改服务与共享配置 |
 | 原生驻留采样 | 通过（短时） | 进程正常运行在 AppKit 事件循环；主进程约 93 MiB RSS、28.4 MiB physical footprint，采样时 CPU 0.0% |
 | 独立代码审查 | 通过 | 状态冲突、授权期间隐藏、拖放范围及 About 互斥问题已修复，复审未发现剩余重要缺陷 |
@@ -20,7 +21,7 @@
 
 [浅色面板](screenshots/panel-light.png) · [深色面板](screenshots/panel-dark.png) · [空状态](screenshots/panel-empty.png)
 
-GitHub CI 会在 macOS 干净环境重复前后端检查及发布编译；最终运行状态见仓库 Actions。本文只把已在本机运行完成的检查计为通过。
+GitHub CI 在干净 macOS 环境重复前后端检查及发布编译。实现审查修复版本 d9f2042 的[完整 CI 已成功](https://github.com/longl1005/drag-share/actions/runs/39117208976)；后续提交仍可在仓库 Actions 查看。本文自动测试计数使用本机最终代码实测结果。
 
 ## 仍需人工执行的系统验收
 
@@ -60,3 +61,7 @@ GitHub CI 会在 macOS 干净环境重复前后端检查及发布编译；最终
 ## 交付边界
 
 无云数据库、遥测、密码存储、目录内容扫描、后台定时轮询或外网服务。Windows/Linux 不提供首发功能。退出工具不会自动关闭系统 SMB。未进行 Developer ID 签名与 Apple 公证。
+
+交付副本：`release/drag-share-0.1.0-macos-arm64.dmg`、`release/drag-share-0.1.0-macos-arm64.app.zip`、`release/SHA256SUMS.txt`。`release/` 不提交 Git，以避免仓库积累构建文件。通过 `scripts/package-release.sh` 可重新封装并校验。
+
+最后只读复核：服务状态与全部共享记录和测试前完全一致；测试启动的原生进程、预览服务器已结束。
