@@ -1,0 +1,1 @@
+{"main":{"identifier":"main","description":"Only the local panel may access desktop operations","local":true,"windows":["main"],"permissions":["core:default","core:window:allow-hide"]}}

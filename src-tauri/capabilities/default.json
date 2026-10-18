@@ -1,0 +1,1 @@
+{"$schema":"../gen/schemas/desktop-schema.json","identifier":"main","description":"Only the local panel may access desktop operations","windows":["main"],"permissions":["core:default","core:window:allow-hide"]}

@@ -1,0 +1,2 @@
+<script setup lang="ts">defineProps<{large?:boolean}>();</script>
+<template><svg :width="large?48:17" :height="large?42:15" viewBox="0 0 48 42" fill="none" aria-hidden="true"><path d="M4 9a3 3 0 0 1 3-3h11l5 5h18a3 3 0 0 1 3 3v21a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3z" fill="currentColor" fill-opacity=".15" stroke="currentColor" stroke-width="2"/><path d="M4 15h40" stroke="currentColor" stroke-width="2" opacity=".5"/></svg></template>
