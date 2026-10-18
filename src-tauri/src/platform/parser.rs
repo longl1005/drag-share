@@ -75,6 +75,9 @@ pub fn parse_status(raw: &str, loaded: bool) -> Result<ServiceStatus> {
     })
 }
 pub fn parse_shares(raw: &str) -> Result<Vec<ShareItem>> {
+    if raw.trim() == "No share point records." {
+        return Ok(vec![]);
+    }
     if !raw.contains("List of Share Points") {
         return Err(AppError::new(
             "PARSE_ERROR",
@@ -172,6 +175,10 @@ mod json_tests {
 }
 
 pub fn parse_json_shares(raw: &str) -> Result<Vec<ShareItem>> {
+    // sharing emits this plain-text success response even with -f json.
+    if raw.trim() == "No share point records." {
+        return Ok(vec![]);
+    }
     let bad = || AppError::new("PARSE_ERROR", "无法解析系统共享目录，请检查系统共享设置");
     let value: serde_json::Value = serde_json::from_str(raw).map_err(|_| bad())?;
     let records = value.as_object().ok_or_else(bad)?;
@@ -211,4 +218,31 @@ pub fn parse_json_shares(raw: &str) -> Result<Vec<ShareItem>> {
     }
     shares.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(shares)
+}
+
+#[cfg(test)]
+mod empty_output_tests {
+    use super::*;
+    #[test]
+    fn macos_no_records_message_is_a_valid_empty_list_even_in_json_mode() {
+        for raw in [
+            "No share point records.",
+            "\nNo share point records.\n",
+            "  No share point records.\n",
+        ] {
+            assert!(parse_json_shares(raw).unwrap().is_empty());
+            assert!(parse_shares(raw).unwrap().is_empty());
+        }
+    }
+    #[test]
+    fn actual_query_failures_still_remain_errors() {
+        for raw in [
+            "",
+            "Unable to query share point records.",
+            "No share point records.\nUnexpected error",
+        ] {
+            assert!(parse_json_shares(raw).is_err());
+            assert!(parse_shares(raw).is_err());
+        }
+    }
 }

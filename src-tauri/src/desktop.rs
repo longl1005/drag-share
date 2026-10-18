@@ -219,7 +219,7 @@ fn dispatch(app: &AppHandle, id: &str) {
                 let state = app.state::<Service>();
                 let result = if let Ok(_interaction) = commands::Interaction::begin(&app, &state) {
                     let handle = app.clone();
-                    let _=tauri::async_runtime::spawn_blocking(move||handle.dialog().message("SMB 共享助手 0.1.0\n轻松管理本机 SMB 文件共享\n\n快捷键：Control + Option + S\n所有数据与日志仅保存在本机。\n关闭服务会保留共享目录配置。").title("关于 SMB 共享助手").blocking_show()).await;
+                    let _=tauri::async_runtime::spawn_blocking(move||handle.dialog().message("SMB 共享助手 0.1.1\n轻松管理本机 SMB 文件共享\n\n快捷键：Control + Option + S\n所有数据与日志仅保存在本机。\n关闭服务会保留共享目录配置。").title("关于 SMB 共享助手").blocking_show()).await;
                     Ok(())
                 } else {
                     Err(AppError::new("BUSY", "操作正在进行中"))

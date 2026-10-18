@@ -38,7 +38,7 @@
 
 | 平台 | 下载 | 状态 |
 | --- | --- | --- |
-| macOS 13+ · Apple Silicon（M1/M2/M3/M4 等 arm64 芯片） | [DMG 安装包](https://github.com/longl1005/drag-share/releases/download/v0.1.0/drag-share-0.1.0-macos-arm64.dmg) · [应用 ZIP](https://github.com/longl1005/drag-share/releases/download/v0.1.0/drag-share-0.1.0-macos-arm64.app.zip) | v0.1.0 可下载 |
+| macOS 13+ · Apple Silicon（M1/M2/M3/M4 等 arm64 芯片） | [DMG 安装包](https://github.com/longl1005/drag-share/releases/download/v0.1.1/drag-share-0.1.1-macos-arm64.dmg) · [应用 ZIP](https://github.com/longl1005/drag-share/releases/download/v0.1.1/drag-share-0.1.1-macos-arm64.app.zip) | v0.1.1 可下载 |
 | macOS · Intel | — | 尚未提供构建 |
 | Windows / Linux | — | 预留平台接口，尚未实现共享功能 |
 
@@ -48,10 +48,10 @@
 
 当前安装包使用 **ad-hoc 本地签名，未经过 Apple Developer ID 签名与公证**。如果 macOS 提示无法验证开发者，请在确认下载来源后，前往「系统设置 → 隐私与安全性」按系统提示允许打开。无需关闭 Gatekeeper。
 
-Release 同时附带 [SHA256SUMS.txt](https://github.com/longl1005/drag-share/releases/download/v0.1.0/SHA256SUMS.txt)。将校验文件与安装包放在同一目录后，可核对下载文件：
+Release 同时附带 [SHA256SUMS.txt](https://github.com/longl1005/drag-share/releases/download/v0.1.1/SHA256SUMS.txt)。将校验文件与安装包放在同一目录后，可核对下载文件：
 
 ```sh
-shasum -a 256 drag-share-0.1.0-macos-arm64.dmg
+shasum -a 256 drag-share-0.1.1-macos-arm64.dmg
 # 将输出与 SHA256SUMS.txt 中对应文件的值比较。
 ```
 
@@ -119,7 +119,7 @@ shasum -a 256 drag-share-0.1.0-macos-arm64.dmg
 当前不支持。请先打开面板，再拖入底部虚线区域。
 
 **当前版本验证到了哪些范围？**  
-v0.1.0 已通过 39 项本地自动测试、Rust/TypeScript 检查、发布构建与原生只读自检，GitHub macOS CI 也已通过。真实管理员授权、其他设备传输、重启自启及多显示器等 OS 级行为仍需人工验收。详见[验证报告](docs/VERIFICATION.md)。
+v0.1.1 已通过 41 项本地自动测试、Rust/TypeScript 检查、发布构建与原生只读自检，GitHub macOS CI 也已通过。真实管理员授权、其他设备传输、重启自启及多显示器等 OS 级行为仍需人工验收。详见[验证报告](docs/VERIFICATION.md)。
 
 ## 从源码运行
 
@@ -179,7 +179,7 @@ src-tauri/target/release/drag-share --read-only-check
 
 ## Download and install
 
-Visit [Releases](https://github.com/longl1005/drag-share/releases/latest). Version 0.1.0 provides a **macOS 13+ Apple Silicon (arm64)** DMG and an application ZIP. Intel, Windows and Linux builds are not available in this release.
+Visit [Releases](https://github.com/longl1005/drag-share/releases/latest). Version 0.1.1 provides a **macOS 13+ Apple Silicon (arm64)** DMG and an application ZIP. Intel, Windows and Linux builds are not available in this release.
 
 Open the DMG and drag **SMB 共享助手.app** into Applications, or extract the ZIP and move the app there. Launch it and click its menu-bar icon. The app does not show a Dock icon or a main window on startup. The interface is currently Simplified Chinese.
 
@@ -216,6 +216,6 @@ npm run tauri dev
 
 Use `npm run check` for frontend tests and build, `cargo test --manifest-path src-tauri/Cargo.toml --lib --locked` for backend tests, and `npm run tauri build` for native bundles. `scripts/package-release.sh` validates and collects distribution assets.
 
-Browser previews use isolated fixtures; the desktop app uses real system state. The release passed 39 local automated tests and macOS CI. Real administrator dialogs, device transfers, login startup, multi-monitor behavior and long-duration resource targets remain manual acceptance items. See the [verification report](docs/VERIFICATION.md) before treating these as validated.
+Browser previews use isolated fixtures; the desktop app uses real system state. The release passed 41 local automated tests and macOS CI. Real administrator dialogs, device transfers, login startup, multi-monitor behavior and long-duration resource targets remain manual acceptance items. See the [verification report](docs/VERIFICATION.md) before treating these as validated.
 
 Issues and focused pull requests are welcome. Include your app version, macOS version, chip architecture and reproduction steps, and redact private paths or network information from logs.
