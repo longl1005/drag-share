@@ -7,6 +7,7 @@ use tokio::io::AsyncReadExt;
 #[derive(Debug)]
 pub struct CommandOutput {
     pub success: bool,
+    pub code: Option<i32>,
     pub stdout: String,
     pub stderr: String,
 }
@@ -30,7 +31,10 @@ pub async fn run_with_timeout(
     args: &[&str],
     duration: Duration,
 ) -> Result<CommandOutput> {
-    let mut child = tokio::process::Command::new(program)
+    let mut command = tokio::process::Command::new(program);
+    #[cfg(target_os = "windows")]
+    command.creation_flags(0x08000000); // CREATE_NO_WINDOW; UAC still uses the secure desktop.
+    let mut child = command
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -62,6 +66,7 @@ pub async fn run_with_timeout(
     };
     Ok(CommandOutput {
         success: status.success(),
+        code: status.code(),
         stdout: String::from_utf8_lossy(&out.await.unwrap_or_default()).into(),
         stderr: String::from_utf8_lossy(&err.await.unwrap_or_default()).into(),
     })
@@ -102,6 +107,7 @@ mod tests {
             "COMMAND_FAILED"
         );
     }
+    #[cfg(unix)]
     #[tokio::test]
     async fn timeout_kills_subprocess() {
         let err = run_with_timeout("/bin/sleep", &["2"], std::time::Duration::from_millis(20))

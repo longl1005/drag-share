@@ -1,3 +1,27 @@
+## 2026-10-30 · v0.2.0 Windows 首发准备
+
+本次在 Linux 实现和验证 Windows 后端、托盘适配和产物准备；未 push、未运行远端 Windows/macOS CI、未生成真实 Windows 安装包或创建 Release。以下结果不替代真机验收，历史 macOS 验证记录保留在下文。
+
+| 检查 | 本次结果 |
+| --- | --- |
+| `npm run check` | 前端 11/11 测试、TypeScript 与生产构建通过；Node 20 和临时 Node 22 均通过 |
+| `npx playwright test` | 安装 Chromium 后，11/11 浏览器交互与明暗状态测试通过 |
+| `scripts/test-rust-core.sh` | Rust 1.92，32/32 核心测试通过；含 Windows 编码、引用、防注入、名称校验、JSON fixture 与错误分类 |
+| `scripts/test-rust-core.sh check-windows` | 安装 x86_64-pc-windows-msvc Rust target 后，真实 Windows 核心模块及测试代码交叉检查通过；不链接 GUI |
+| PowerShell 命令执行 fixture | 临时源副本仅放开 windows.rs 测试的 cfg，使用 PowerShell 7.6.9 / Linux 执行相同封装及 mock cmdlet，37/37 通过；覆盖 UTF-8 输出、中文/引号/美元符参数、空列表、ACL 标识、缺失目录、持久记录、嵌套 Win32Exception 与 UAC 子进程退出码；不修改 SMB、不请求 UAC |
+| `pwsh -NoProfile -File scripts/build-windows.test.ps1` | 通过；替身 npm + 假安装包验证 NSIS 精确匹配、ZIP 内容、命名、真实 SHA-256 与构建失败传播 |
+| `node --test scripts/sha256sums.test.mjs` | 2/2 通过；同时覆盖 Windows 与 macOS 包，保留双架构 macOS 打包回归 |
+| rustfmt、shell 语法、PowerShell parser、actionlint 1.7.12、`git diff --check` | 通过 |
+| 完整 Linux 桌面 Clippy | 尝试后受环境缺少 pkg-config / GTK 开发依赖阻断；Windows/macOS 完整桌面 test / clippy 已配置到原生 runner，尚未执行 |
+
+Windows 普通用户读取优先使用 Get-SmbShare / Get-SmbShareAccess，CIM 受限或服务停止时回退本机持久共享注册表；不会为刷新反复请求 UAC。写操作以 EncodedCommand 提权，按退出码区分取消、拒绝与失败。服务关闭保留共享记录，管理共享不可操作。Windows 保持唤醒使用专用线程调用 SetThreadExecutionState，允许屏幕休眠。NTFS / 防火墙 / 访客策略不由应用改写。
+
+触发构建：Actions → Verify drag-share → Run workflow。`windows-x64` 包含 NSIS、ZIP、SHA256SUMS；`release-assets` 汇总六个跨平台包；原有独立 `macos-release-assets` 保留，不依赖 Windows 成功。Windows 本地构建执行 `npm ci` 和 `./scripts/build-windows.ps1`。
+
+仍需人工验收：Windows 10/11 安装和卸载、PowerShell 5.1、真实 UAC 同意/取消/替代管理员、Server 服务依赖和重启、NTFS 及远端设备读写、防火墙、托盘高 DPI/多屏/任务栏位置、拖入和 Explorer、登录启动、保持唤醒与退出释放、macOS 双架构回归。完整清单与发布限制见 [v0.2.0 发布说明](releases/v0.2.0.md)。
+
+---
+
 ## 2026-10-30 · Intel 构建链路补充验证
 
 本节记录 Linux 上的本次验证，不改变下文历史 arm64 交付证据。应用版本仍为 0.1.2；未生成 macOS 安装包、未运行远端 CI、未发布 Intel 附件。

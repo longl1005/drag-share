@@ -2,9 +2,9 @@
 
 # drag-share · SMB 共享助手
 
-**把 Mac 上的文件夹共享到局域网，从菜单栏开始。**
+**从 Mac 菜单栏或 Windows 任务栏托盘，将本机文件夹共享到局域网。**
 
-**Share folders from your Mac to your local network, right from the menu bar.**
+**Share local folders from the macOS menu bar or Windows system tray.**
 
 [![Release](https://img.shields.io/github/v/release/longl1005/drag-share)](https://github.com/longl1005/drag-share/releases)
 [![macOS](https://img.shields.io/badge/macOS-13%2B-111827?logo=apple&logoColor=white)](#下载安装)
@@ -30,7 +30,7 @@
 
 临时把电影目录交给平板播放器、把设计素材传到另一台电脑，往往需要反复打开系统共享设置。drag-share 将常用操作收进菜单栏：打开面板、共享文件夹、复制地址，用完关闭服务。
 
-应用管理的是 **macOS 内置 SMB 文件共享**，无需部署另一个文件服务器。共享目录配置与服务开关独立：关闭服务保留目录，下次开启继续使用。
+应用管理的是 **macOS / Windows 内置 SMB 文件共享**，无需部署另一个文件服务器。共享目录配置与服务开关独立：关闭服务保留目录，下次开启继续使用。
 
 ## 下载安装
 
@@ -40,7 +40,8 @@
 | --- | --- | --- |
 | macOS 13+ · Apple Silicon（M1/M2/M3/M4 等 arm64 芯片） | [DMG 安装包](https://github.com/longl1005/drag-share/releases/download/v0.1.2/drag-share-0.1.2-macos-arm64.dmg) · [应用 ZIP](https://github.com/longl1005/drag-share/releases/download/v0.1.2/drag-share-0.1.2-macos-arm64.app.zip) | v0.1.2 可下载 |
 | macOS 13+ · Intel（x86_64） | [CI 构建附件](https://github.com/longl1005/drag-share/actions/workflows/check.yml) | 构建流程已支持；尚未运行本次 CI、尚未发布 Intel 包 |
-| Windows / Linux | — | 预留平台接口，尚未实现共享功能 |
+| Windows 10/11 · x64 | [CI 构建附件 windows-x64](https://github.com/longl1005/drag-share/actions/workflows/check.yml) | v0.2.0 首发准备中；NSIS 安装程序 + ZIP，尚未运行本次 Windows CI、尚未发布 |
+| Linux | — | 尚未实现共享功能 |
 
 1. 下载 DMG 并打开，将 **SMB 共享助手.app** 拖入「应用程序」。也可下载 ZIP，解压后将应用移入「应用程序」。
 2. 打开应用，在菜单栏找到共享助手图标。应用默认不显示 Dock 图标或主窗口。
@@ -80,6 +81,23 @@ shasum -a 256 drag-share-0.1.2-macos-arm64.dmg
 - 一键打开系统共享设置，或在 Finder 中定位目录。
 - 右键菜单可勾选「共享时保持唤醒」：默认关闭，记住选择；共享开启期间阻止闲置自动休眠，允许屏幕熄灭。关闭共享、取消勾选或退出工具时自动释放。
 - 适配系统浅色、深色主题及原生毛玻璃面板。
+
+## Windows 使用与构建
+
+v0.2.0 为 Windows 首发版本，尚待真机验收，不代表已有可下载 Release。安装 `drag-share-0.2.0-windows-x64-setup.exe`，或解压同名 ZIP 后运行 `drag-share.exe`（需要 WebView2 Runtime）。应用位于任务栏通知区域，可能被收入折叠菜单；左键打开面板，右键打开菜单，**Ctrl + Alt + S** 呼出，Esc 收起。安装包暂未代码签名。
+
+使用普通账户启动，服务启停和共享增删时弹出 UAC；取消授权不会视为成功。新增共享仅授予启动应用的 Windows 账户读写共享权限，不修改 NTFS ACL、访客策略或防火墙。通过系统「高级共享设置」允许可信专用网络的文件和打印机共享，再使用有 NTFS 权限的 Windows 账户从另一设备连接。Server（LanmanServer）停用会影响本机所有 SMB 共享，配置仍保留；有依赖服务时停止可能失败，应用不会强制关闭依赖服务。启用会设为自动启动，关闭会设为禁用。
+
+Windows 隐藏并保护系统管理共享（如 C$ / IPC$），支持本机磁盘目录，不支持再次共享 UNC 网络目录。目录名含 Windows 禁用字符时请先重命名。访客标识仅反映共享 ACL 中 Guest / Anonymous 授权，不保证系统允许访客登录；Everyone 权限不等于访客访问。地址优先 IPv4，失败回退计算机名（不追加 `.local`）。Windows 支持「共享时保持唤醒」，通过专用线程请求阻止系统闲置休眠（允许屏幕熄灭），停用或退出自动释放；日志在 `%LOCALAPPDATA%\SMBShare\Logs\ops.jsonl`。
+
+在 Windows 安装 Node.js 22、Rust 1.92、Visual Studio C++ Build Tools 与 WebView2 后：
+
+```powershell
+npm ci
+./scripts/build-windows.ps1
+```
+
+脚本输出 `release/drag-share-<ver>-windows-x64-setup.exe`、`.zip` 与 `SHA256SUMS.txt`。Actions → **Verify drag-share → Run workflow** 可触发全部平台构建；`windows-x64` artifact 包含 Windows 安装包与 ZIP，`release-assets` 汇总两种 macOS 架构与 Windows 的六个包及校验文件。整个流程只上传 artifact，不创建 Release。详见 [v0.2.0 发布说明](docs/releases/v0.2.0.md)。
 
 ## 快速上手
 
@@ -160,10 +178,11 @@ npm run tauri dev
 | `scripts/build-macos.sh x86_64-apple-darwin` | 在 macOS 构建并封装 Intel DMG / app.zip |
 | `scripts/build-macos.sh aarch64-apple-darwin` | 在 macOS 构建并封装 Apple Silicon DMG / app.zip |
 | `scripts/package-release.sh [target]` | 检查架构、签名和 DMG，整理发布附件及 SHA-256 |
-| `node scripts/sha256sums.mjs release` | 汇总当前版本已有的两种架构附件校验值 |
+| `node scripts/sha256sums.mjs release` | 汇总当前版本已有的 macOS / Windows 附件校验值 |
 | `scripts/test-rust-core.sh` | Linux/macOS 上运行不依赖桌面 GUI 的 Rust 核心测试 |
+| `scripts/test-rust-core.sh check-windows` | 安装 Windows Rust target 后交叉检查 Windows 核心模块与测试 |
 
-双架构构建由 `.github/workflows/check.yml` 在 push、PR 或 Actions → Verify drag-share → Run workflow 时执行，仅上传 Actions artifacts，不创建或修改 GitHub Release。下载 `macos-release-assets` 可取得四个安装附件和统一 `SHA256SUMS.txt`。Intel 命名为 `drag-share-<ver>-macos-x64.dmg` / `.app.zip`；arm64 名称保持不变。详细 runner、交叉构建和发布步骤见[构建说明](docs/releases/macos-builds.md)。Linux 仅运行测试，不能生成 macOS 安装包。
+双架构构建由 `.github/workflows/check.yml` 在 push、PR 或 Actions → Verify drag-share → Run workflow 时执行，仅上传 Actions artifacts，不创建或修改 GitHub Release。下载 `release-assets` 可取得六个安装附件和统一 `SHA256SUMS.txt`。Intel 命名为 `drag-share-<ver>-macos-x64.dmg` / `.app.zip`；arm64 名称保持不变。详细 runner、交叉构建和发布步骤见[构建说明](docs/releases/macos-builds.md)。Linux 仅运行测试，不能生成 macOS 安装包。
 
 浏览器预览地址：`http://127.0.0.1:1420/?preview=normal&theme=light`。`preview` 可选 `normal`、`off`、`empty`、`loading`、`error`；`theme` 可选 `light`、`dark`。
 
@@ -195,7 +214,7 @@ src-tauri/target/release/drag-share --read-only-check
 
 ## Download and install
 
-Visit [Releases](https://github.com/longl1005/drag-share/releases/latest). Version 0.1.2 provides a **macOS 13+ Apple Silicon (arm64)** DMG and an application ZIP. Intel builds are supported by the [CI workflow](https://github.com/longl1005/drag-share/actions/workflows/check.yml), but have not yet been built or published for this change. Windows and Linux packages are unavailable.
+Visit [Releases](https://github.com/longl1005/drag-share/releases/latest). Version 0.1.2 provides a **macOS 13+ Apple Silicon (arm64)** DMG and an application ZIP. Intel builds are supported by the [CI workflow](https://github.com/longl1005/drag-share/actions/workflows/check.yml), but have not yet been built or published for this change. Windows x64 support is prepared for v0.2.0: the CI produces an NSIS installer and ZIP in the `windows-x64` artifact; this change has not yet run Windows CI or received native acceptance. Linux remains unsupported.
 
 Open the DMG and drag **SMB 共享助手.app** into Applications, or extract the ZIP and move the app there. Launch it and click its menu-bar icon. The app does not show a Dock icon or a main window on startup. The interface is currently Simplified Chinese.
 

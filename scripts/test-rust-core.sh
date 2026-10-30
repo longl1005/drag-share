@@ -19,4 +19,8 @@ writeFileSync(`${temp}/lib.rs`, modules.map(name =>
 // Reuse the application's resolved dependency versions as the starting point.
 writeFileSync(`${temp}/Cargo.lock`, readFileSync(`${root}/src-tauri/Cargo.lock`));
 JS
-cargo test --manifest-path "$CORE_TEST_DIR/Cargo.toml" --lib
+case "${1:-test}" in
+  test) cargo test --manifest-path "$CORE_TEST_DIR/Cargo.toml" --lib ;;
+  check-windows) cargo check --manifest-path "$CORE_TEST_DIR/Cargo.toml" --tests --target x86_64-pc-windows-msvc ;;
+  *) echo 'Usage: test-rust-core.sh [test|check-windows]' >&2; exit 1 ;;
+esac

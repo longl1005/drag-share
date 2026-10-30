@@ -19,6 +19,8 @@ test('checksums reject empty input, retain both architectures, and exclude older
     run();
     assert.equal((await readFile(join(directory, 'SHA256SUMS.txt'), 'utf8')).trim().split('\n').length, 2);
     for (const name of files.slice(2)) await writeFile(join(directory, name), name);
+    files.push(`drag-share-${version}-windows-x64-setup.exe`, `drag-share-${version}-windows-x64.zip`);
+    for (const name of files.slice(-2)) await writeFile(join(directory, name), name);
     await writeFile(join(directory, 'drag-share-0.0.0-macos-arm64.dmg'), 'old');
     run();
     assert.equal(await readFile(join(directory, 'SHA256SUMS.txt'), 'utf8'), files.sort().map(name =>

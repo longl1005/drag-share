@@ -179,7 +179,15 @@ pub async fn reveal_share(state: State<'_, Service>, id: String) -> Result<()> {
         }
         Ok(())
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer.exe")
+            .arg(&item.path)
+            .spawn()
+            .map_err(AppError::io)?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         Err(AppError::new(
             "PLATFORM_NOT_SUPPORTED",
@@ -202,7 +210,15 @@ pub async fn open_settings() -> Result<()> {
             Err(AppError::new("OPEN_FAILED", "无法打开系统共享设置"))
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer.exe")
+            .arg("ms-settings:network-advancedsettings")
+            .spawn()
+            .map_err(AppError::io)?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         Err(AppError::new(
             "PLATFORM_NOT_SUPPORTED",

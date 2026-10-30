@@ -50,12 +50,18 @@ pub fn record(
     let Ok(_guard) = AUDIT_LOCK.lock() else {
         return;
     };
-    let Some(home) = std::env::var_os("HOME") else {
+    let Some(home) = std::env::var_os(if cfg!(target_os = "windows") {
+        "LOCALAPPDATA"
+    } else {
+        "HOME"
+    }) else {
         return;
     };
     #[cfg(target_os = "macos")]
     let base = std::path::PathBuf::from(home).join("Library/Logs/SMBShare");
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    let base = std::path::PathBuf::from(home).join("SMBShare/Logs");
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let base = std::path::PathBuf::from(home).join(".local/state/SMBShare");
     let result = match error {
         None => "success",

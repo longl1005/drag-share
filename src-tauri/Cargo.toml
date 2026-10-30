@@ -1,6 +1,6 @@
 [package]
 name = "drag-share"
-version = "0.1.2"
+version = "0.2.0"
 description = "SMB Share Assistant"
 authors = ["drag-share"]
 edition = "2021"

@@ -6,6 +6,13 @@ use crate::{
     security,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
+fn same_name(left: &str, right: &str) -> bool {
+    if cfg!(target_os = "windows") {
+        left.to_lowercase() == right.to_lowercase()
+    } else {
+        left == right
+    }
+}
 pub struct Service {
     pub platform: Box<dyn SmbPlatform>,
     pub mutation: tokio::sync::Mutex<()>,
@@ -123,18 +130,21 @@ impl Service {
             })?;
         let mut name = base.to_owned();
         let mut i = 2;
-        while shares.iter().any(|s| s.id == name || s.name == name) {
+        while shares
+            .iter()
+            .any(|s| same_name(&s.id, &name) || same_name(&s.name, &name))
+        {
             name = format!("{base} ({i})");
             i += 1;
         }
         self.platform.add_share(&path, &name).await?;
-        if !self
-            .platform
-            .list_shares()
-            .await?
-            .iter()
-            .any(|s| s.id == name && s.path == path)
-        {
+        if !self.platform.list_shares().await?.iter().any(|s| {
+            same_name(&s.id, &name)
+                && same_name(
+                    &security::canonical_directory(&s.path).unwrap_or_else(|_| s.path.clone()),
+                    &path,
+                )
+        }) {
             return Err(AppError::new(
                 "VERIFY_FAILED",
                 "无法确认目录已共享，请刷新列表检查",
@@ -323,6 +333,21 @@ mod tests {
             .unwrap_err()
             .canceled());
         assert!(d.lock().unwrap().shares.is_empty());
+    }
+    #[cfg(target_os = "windows")]
+    #[tokio::test]
+    async fn names_collide_case_insensitively_on_windows() {
+        let (service, data) = setup();
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().file_name().unwrap().to_str().unwrap();
+        let mut existing = share("C:\\missing");
+        existing.name = base.to_uppercase();
+        data.lock().unwrap().shares.push(existing);
+        service.add(dir.path().to_str().unwrap()).await.unwrap();
+        assert_eq!(
+            data.lock().unwrap().shares.last().unwrap().name,
+            format!("{base} (2)")
+        );
     }
     #[tokio::test]
     async fn busy_rejects_concurrent_write() {

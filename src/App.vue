@@ -10,6 +10,7 @@ import type {AppError,DesktopBridge} from './types';
 import StatusSection from './components/StatusSection.vue';
 import ShareList from './components/ShareList.vue';
 import DropZone from './components/DropZone.vue';
+const shortcutLabel=/Mac/.test(navigator.platform)?'Control + Option + S':'Control + Alt + S';
 const selected=ref<DesktopBridge>(bridge);
 const c=useShare({snapshot:()=>selected.value.snapshot(),setEnabled:x=>selected.value.setEnabled(x),chooseDirectory:()=>selected.value.chooseDirectory(),add:x=>selected.value.add(x),remove:x=>selected.value.remove(x),copy:x=>selected.value.copy(x),reveal:x=>selected.value.reveal(x),settings:()=>selected.value.settings(),hide:()=>selected.value.hide()});
 const {data,loading,busy,nativeBusy,toast,canManage}=c;
@@ -39,6 +40,6 @@ onBeforeUnmount(()=>{disposed=true;unlisteners.forEach(off=>off());document.remo
  <div v-if="data.warnings.length" class="warning-banner" role="alert"><span>{{data.warnings[0]}}</span><button @click="c.settings">系统设置 ↗</button></div>
  <ShareList :shares="data.shares" :loading="loading" :can-manage="canManage" :unavailable="unavailable" @add="c.addDirectory" @copy="c.copy" @reveal="c.reveal" @remove="c.remove"/>
  <DropZone :enabled="canManage" :hot="hot" @add="c.addDirectory"/>
- <footer class="panel-footer"><span>{{!native?'浏览器预览 · 不操作系统':'Control + Option + S'}}</span><button title="打开系统共享设置" aria-label="打开系统共享设置" :disabled="busy||nativeBusy" @click="c.settings"><svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="m8 2-.5 2-2 1L3.5 5l-1 2 1.5 1.5v3L2.5 13l1 2 2-.1 2 1 .5 2h3l.5-2 2-1 2 .1 1-2-1.5-1.5v-3L17.5 7l-1-2-2 .1-2-1L11 2Z"/><circle cx="10" cy="10" r="3"/></svg></button></footer>
+ <footer class="panel-footer"><span>{{!native?'浏览器预览 · 不操作系统':shortcutLabel}}</span><button title="打开系统共享设置" aria-label="打开系统共享设置" :disabled="busy||nativeBusy" @click="c.settings"><svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="m8 2-.5 2-2 1L3.5 5l-1 2 1.5 1.5v3L2.5 13l1 2 2-.1 2 1 .5 2h3l.5-2 2-1 2 .1 1-2-1.5-1.5v-3L17.5 7l-1-2-2 .1-2-1L11 2Z"/><circle cx="10" cy="10" r="3"/></svg></button></footer>
  <Transition name="toast"><div v-if="toast" class="toast-message" :class="{error:toast.error}" :role="toast.error?'alert':'status'"><span>{{toast.error?'!':'✓'}}</span><p>{{toast.message}}</p><button aria-label="关闭提示" @click="toast=null">×</button></div></Transition>
 </main></template>

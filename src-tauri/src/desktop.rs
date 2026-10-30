@@ -30,9 +30,9 @@ fn icon(status: ServiceStatus) -> tauri::image::Image<'static> {
             if outline || arrow {
                 let p = (y * 22 + x) * 4;
                 pixels[p..p + 4].copy_from_slice(&[
-                    30,
-                    30,
-                    32,
+                    if cfg!(target_os = "windows") { 70 } else { 30 },
+                    if cfg!(target_os = "windows") { 145 } else { 30 },
+                    if cfg!(target_os = "windows") { 230 } else { 32 },
                     if status == ServiceStatus::Disabled {
                         125
                     } else {
@@ -82,7 +82,7 @@ fn menu(app: &AppHandle, status: ServiceStatus) -> tauri::Result<Menu<tauri::Wry
         app,
         "keep-awake",
         "共享时保持唤醒",
-        cfg!(target_os = "macos"),
+        cfg!(any(target_os = "macos", target_os = "windows")),
         app.state::<AwakeState>().0.lock().unwrap().enabled(),
         None::<&str>,
     )?;
@@ -258,7 +258,7 @@ fn dispatch(app: &AppHandle, id: &str) {
                 let state = app.state::<Service>();
                 let result = if let Ok(_interaction) = commands::Interaction::begin(&app, &state) {
                     let handle = app.clone();
-                    let _=tauri::async_runtime::spawn_blocking(move||handle.dialog().message("SMB 共享助手 0.1.2\n轻松管理本机 SMB 文件共享\n\n快捷键：Control + Option + S\n所有数据与日志仅保存在本机。\n关闭服务会保留共享目录配置。").title("关于 SMB 共享助手").blocking_show()).await;
+                    let _=tauri::async_runtime::spawn_blocking(move||handle.dialog().message("SMB 共享助手 0.2.0\n轻松管理本机 SMB 文件共享\n\n快捷键：Control + Alt/Option + S\n所有数据与日志仅保存在本机。\n关闭服务会保留共享目录配置。").title("关于 SMB 共享助手").blocking_show()).await;
                     Ok(())
                 } else {
                     Err(AppError::new("BUSY", "操作正在进行中"))
@@ -345,7 +345,7 @@ pub fn setup(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
     }
     if let Err(e) = handle.global_shortcut().register("Control+Alt+KeyS") {
         *handle.state::<WindowState>().warning.lock().unwrap() =
-            Some(format!("快捷键注册失败：{e}，仍可点击菜单栏图标使用"));
+            Some(format!("快捷键注册失败：{e}，仍可点击托盘图标使用"));
     }
     let app = handle.clone();
     tauri::async_runtime::spawn(async move {

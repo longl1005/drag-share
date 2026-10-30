@@ -63,6 +63,31 @@ jobs:
           name: browser-test-results-${{ matrix.arch }}
           path: test-results/
 
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          components: rustfmt, clippy
+          targets: x86_64-pc-windows-msvc
+      - run: npm ci
+      - run: npm run check
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+      - run: ./scripts/build-windows.test.ps1
+      - run: ./scripts/build-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: release/
+          if-no-files-found: error
+
   packages:
     needs: [macos, linux-core]
     runs-on: ubuntu-latest
@@ -87,5 +112,36 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macos-release-assets
+          path: release/
+          if-no-files-found: error
+
+  all-packages:
+    needs: [macos, windows, linux-core]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-arm64
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-x64
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-x64
+          path: release
+      - run: |
+          test "$(find release -type f | wc -l)" -eq 7
+          node scripts/sha256sums.mjs release
+          cd release
+          sha256sum --check SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
           path: release/
           if-no-files-found: error

@@ -1,8 +1,11 @@
 #[cfg(target_os = "macos")]
 mod macos;
 pub mod parser;
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 mod unsupported;
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+#[cfg(any(target_os = "windows", test))]
+mod windows;
 use crate::{
     error::Result,
     model::{ServiceStatus, ShareItem},
@@ -22,7 +25,11 @@ pub fn native() -> Box<dyn SmbPlatform> {
     {
         Box::new(macos::MacOs)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        Box::new(windows::Windows)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         Box::new(unsupported::Unsupported)
     }

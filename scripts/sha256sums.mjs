@@ -8,9 +8,9 @@ const directory = process.argv[2] ?? 'release';
 const names = (await readdir(directory)).filter(name =>
   ['arm64', 'x64'].some(arch =>
     ['dmg', 'app.zip'].some(ext => name === `drag-share-${version}-macos-${arch}.${ext}`)
-  )
+  ) || ['setup.exe', 'zip'].some(ext => name === `drag-share-${version}-windows-x64${ext === 'setup.exe' ? '-' : '.'}${ext}`)
 ).sort();
-if (!names.length) throw new Error(`No v${version} macOS packages in ${directory}`);
+if (!names.length) throw new Error(`No v${version} packages in ${directory}`);
 const lines = [];
 for (const name of names) {
   const hash = createHash('sha256');

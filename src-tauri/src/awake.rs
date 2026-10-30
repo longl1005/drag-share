@@ -14,6 +14,21 @@ pub trait WakeDriver: Send {
 #[derive(Default)]
 pub struct NativeDriver {
     child: Option<Child>,
+    #[cfg(target_os = "windows")]
+    windows: Option<WindowsAwake>,
+}
+// Execution-state requests are thread-local. Keep a dedicated thread alive and
+// clear its request on that same thread when the service stops or the app exits.
+#[cfg(target_os = "windows")]
+struct WindowsAwake {
+    stop: std::sync::mpsc::Sender<()>,
+    thread: std::thread::JoinHandle<()>,
+}
+#[cfg(target_os = "windows")]
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    #[link_name = "SetThreadExecutionState"]
+    fn set_thread_execution_state(flags: u32) -> u32;
 }
 impl WakeDriver for NativeDriver {
     fn acquire(&mut self) -> Result<()> {
@@ -31,7 +46,32 @@ impl WakeDriver for NativeDriver {
             self.child = Some(child);
             Ok(())
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            if self.windows.is_some() {
+                return Ok(());
+            }
+            let (stop, receiver) = std::sync::mpsc::channel();
+            let (ready, result) = std::sync::mpsc::sync_channel(1);
+            let thread = std::thread::spawn(move || {
+                // ES_CONTINUOUS | ES_SYSTEM_REQUIRED: display sleep remains allowed.
+                let acquired = unsafe { set_thread_execution_state(0x80000001) } != 0;
+                let _ = ready.send(acquired);
+                if acquired {
+                    let _ = receiver.recv();
+                    unsafe {
+                        set_thread_execution_state(0x80000000);
+                    }
+                }
+            });
+            if !result.recv().unwrap_or(false) {
+                let _ = thread.join();
+                return Err(AppError::new("WAKE_FAILED", "Windows 无法阻止系统闲置休眠"));
+            }
+            self.windows = Some(WindowsAwake { stop, thread });
+            Ok(())
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             Err(AppError::new(
                 "PLATFORM_NOT_SUPPORTED",
@@ -40,6 +80,11 @@ impl WakeDriver for NativeDriver {
         }
     }
     fn release(&mut self) {
+        #[cfg(target_os = "windows")]
+        if let Some(awake) = self.windows.take() {
+            let _ = awake.stop.send(());
+            let _ = awake.thread.join();
+        }
         if let Some(mut child) = self.child.take() {
             let _ = child.kill();
             let _ = child.wait();

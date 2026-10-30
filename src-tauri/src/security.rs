@@ -19,6 +19,14 @@ pub fn canonical_directory(path: &str) -> Result<String> {
     if !canonical.is_dir() {
         return Err(AppError::new("NOT_DIRECTORY", "仅支持添加文件夹目录"));
     }
+    #[cfg(target_os = "windows")]
+    let canonical = {
+        let raw = canonical.to_string_lossy();
+        if raw.starts_with(r"\\?\UNC\") || raw.starts_with(r"\\") && !raw.starts_with(r"\\?\") {
+            return Err(AppError::new("INVALID_PATH", "仅支持共享本机磁盘目录"));
+        }
+        std::path::PathBuf::from(raw.strip_prefix(r"\\?\").unwrap_or(&raw))
+    };
     canonical
         .to_str()
         .map(str::to_owned)
