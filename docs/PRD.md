@@ -6,7 +6,7 @@
 | **文档版本** | v2.1 (正式标准版) |
 | **文档状态** | 评审通过 / 待开发 (Approved for Development) |
 | **技术栈** | Tauri 2.x + Vue 3 + TypeScript + Rust 1.92+ |
-| **目标平台** | macOS 13+ (首发完整实现)；Windows 10+ / Linux (架构预留) |
+| **目标平台** | macOS 13+（Apple Silicon / Intel；双架构构建，Intel 安装包待 CI 验证与发布）；Windows 10+ / Linux (架构预留) |
 | **前身项目** | Swift / AppKit 原生版（已验证核心底层方案） |
 
 ---

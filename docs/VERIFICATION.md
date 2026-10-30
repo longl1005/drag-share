@@ -1,3 +1,21 @@
+## 2026-10-30 · Intel 构建链路补充验证
+
+本节记录 Linux 上的本次验证，不改变下文历史 arm64 交付证据。应用版本仍为 0.1.2；未生成 macOS 安装包、未运行远端 CI、未发布 Intel 附件。
+
+| 检查 | 本次结果 |
+| --- | --- |
+| `npm test` | 11/11 通过 |
+| `npm run build` | TypeScript 检查与 Vite 生产构建通过 |
+| `scripts/test-rust-core.sh` | Rust 1.92.0，27/27 通过；引用真实核心模块，不链接 Tauri/GTK；不含 macOS 专属 caffeinate 测试 |
+| `node --test scripts/sha256sums.test.mjs` | 2/2 通过；覆盖空输入、顺序封装、排除历史版本、精确摘要、目标路径/命名和错误架构拦截；macOS 工具使用替身 |
+| shell 语法、actionlint 1.7.12 及 `git diff --check` | 通过 |
+
+本机默认 Node 20.19.2，最终用临时 Node 22.23.4 重跑 `npm run check` 和打包/校验回归测试，均通过；CI 和正式构建要求 Node 22。测试 Rust 工具链仅安装到临时目录，未修改全局配置。完整桌面 Cargo test / Clippy、两种 macOS 架构构建、codesign、hdiutil 和安装后启动交给新增双 runner CI；这些尚未执行，不能标记为通过。
+
+复现和 CI 触发方法见[双架构构建说明](releases/macos-builds.md)。Intel/macOS 13 真机、SMB 授权和跨设备连接仍待人工验收。既有 arm64 Release 和历史说明保持原样。
+
+---
+
 # drag-share 0.1.0 验证报告
 
 日期：2026-10-18（Asia/Shanghai）。范围：macOS P0/P1；无人值守，不执行任何系统 SMB 写操作。

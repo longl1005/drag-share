@@ -39,7 +39,7 @@
 | 平台 | 下载 | 状态 |
 | --- | --- | --- |
 | macOS 13+ · Apple Silicon（M1/M2/M3/M4 等 arm64 芯片） | [DMG 安装包](https://github.com/longl1005/drag-share/releases/download/v0.1.2/drag-share-0.1.2-macos-arm64.dmg) · [应用 ZIP](https://github.com/longl1005/drag-share/releases/download/v0.1.2/drag-share-0.1.2-macos-arm64.app.zip) | v0.1.2 可下载 |
-| macOS · Intel | — | 尚未提供构建 |
+| macOS 13+ · Intel（x86_64） | [CI 构建附件](https://github.com/longl1005/drag-share/actions/workflows/check.yml) | 构建流程已支持；尚未运行本次 CI、尚未发布 Intel 包 |
 | Windows / Linux | — | 预留平台接口，尚未实现共享功能 |
 
 1. 下载 DMG 并打开，将 **SMB 共享助手.app** 拖入「应用程序」。也可下载 ZIP，解压后将应用移入「应用程序」。
@@ -135,7 +135,7 @@ v0.1.2 已通过 50 项本地自动测试、Rust/TypeScript 检查、发布构�
 
 ### 前置条件
 
-- macOS 13+；当前发布和本机验证环境为 Apple Silicon。
+- macOS 13+，Apple Silicon 或 Intel；已发布 v0.1.2 安装包仍仅 Apple Silicon。
 - Node.js 22、npm、Rust 1.92+。
 - Xcode Command Line Tools，以及 [Tauri macOS 开发环境](https://v2.tauri.app/start/prerequisites/)。
 
@@ -157,7 +157,13 @@ npm run tauri dev
 | `cargo test --manifest-path src-tauri/Cargo.toml --lib --locked` | 运行 Rust 单元测试，不修改系统 SMB |
 | `npx playwright install chromium && npx playwright test` | 验证明暗主题、五种界面状态与交互 |
 | `npm run tauri build` | 构建当前平台安装包 |
-| `scripts/package-release.sh` | 检查签名和 DMG，整理发布附件及 SHA-256 |
+| `scripts/build-macos.sh x86_64-apple-darwin` | 在 macOS 构建并封装 Intel DMG / app.zip |
+| `scripts/build-macos.sh aarch64-apple-darwin` | 在 macOS 构建并封装 Apple Silicon DMG / app.zip |
+| `scripts/package-release.sh [target]` | 检查架构、签名和 DMG，整理发布附件及 SHA-256 |
+| `node scripts/sha256sums.mjs release` | 汇总当前版本已有的两种架构附件校验值 |
+| `scripts/test-rust-core.sh` | Linux/macOS 上运行不依赖桌面 GUI 的 Rust 核心测试 |
+
+双架构构建由 `.github/workflows/check.yml` 在 push、PR 或 Actions → Verify drag-share → Run workflow 时执行，仅上传 Actions artifacts，不创建或修改 GitHub Release。下载 `macos-release-assets` 可取得四个安装附件和统一 `SHA256SUMS.txt`。Intel 命名为 `drag-share-<ver>-macos-x64.dmg` / `.app.zip`；arm64 名称保持不变。详细 runner、交叉构建和发布步骤见[构建说明](docs/releases/macos-builds.md)。Linux 仅运行测试，不能生成 macOS 安装包。
 
 浏览器预览地址：`http://127.0.0.1:1420/?preview=normal&theme=light`。`preview` 可选 `normal`、`off`、`empty`、`loading`、`error`；`theme` 可选 `light`、`dark`。
 
@@ -189,7 +195,7 @@ src-tauri/target/release/drag-share --read-only-check
 
 ## Download and install
 
-Visit [Releases](https://github.com/longl1005/drag-share/releases/latest). Version 0.1.2 provides a **macOS 13+ Apple Silicon (arm64)** DMG and an application ZIP. Intel, Windows and Linux builds are not available in this release.
+Visit [Releases](https://github.com/longl1005/drag-share/releases/latest). Version 0.1.2 provides a **macOS 13+ Apple Silicon (arm64)** DMG and an application ZIP. Intel builds are supported by the [CI workflow](https://github.com/longl1005/drag-share/actions/workflows/check.yml), but have not yet been built or published for this change. Windows and Linux packages are unavailable.
 
 Open the DMG and drag **SMB 共享助手.app** into Applications, or extract the ZIP and move the app there. Launch it and click its menu-bar icon. The app does not show a Dock icon or a main window on startup. The interface is currently Simplified Chinese.
 
